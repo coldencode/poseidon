@@ -1,8 +1,20 @@
-import Image from "next/image";
-
 export default function Home() {
   return (
     <div className="relative min-h-screen overflow-hidden bg-slate-950 font-sans">
+      {/* Video background - darkened and blurred */}
+      <video
+        autoPlay
+        muted
+        loop
+        playsInline
+        className="absolute inset-0 h-full w-full object-cover opacity-40 blur-sm"
+      >
+        <source src="/ocean.mp4" type="video/mp4" />
+      </video>
+
+      {/* Dark overlay */}
+      <div className="absolute inset-0 bg-slate-950/60" />
+
       {/* Background pattern */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(56,189,248,0.15),transparent)]" />
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#33415512_1px,transparent_1px),linear-gradient(to_bottom,#33415512_1px,transparent_1px)] bg-[size:4rem_4rem]" />
