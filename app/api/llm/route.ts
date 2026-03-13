@@ -1,8 +1,14 @@
 import { GoogleGenAI } from "@google/genai";
 import { NextResponse } from "next/server";
 
-const genAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY! });
+// Gemini
+const genAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY});
 
+/**
+ * 
+ * @param prompt
+ * @returns the output of Gemini
+ */
 async function askGemini(prompt: string) {
   const result = await genAI.models.generateContent({
     model: "gemini-2.5-flash",
@@ -14,6 +20,11 @@ async function askGemini(prompt: string) {
   return { success: true, response: text ?? "" };
 }
 
+/**
+ * 
+ * @param req 
+ * @returns a json containing the the output of Gemini
+ */
 export async function POST(req: Request) {
   const { prompt } = await req.json();
 
