@@ -9,15 +9,19 @@ import {
 
 const POSE_CONNECTIONS = PoseLandmarker.POSE_CONNECTIONS;
 
-type LandmarkLike = { x: number; y: number; z?: number; visibility?: number };
-
-function toNormalizedLandmark(l: LandmarkLike): NormalizedLandmark {
-  return { x: l.x, y: l.y, z: l.z ?? 0, visibility: l.visibility ?? 1 };
+function toNormalizedLandmark(l: unknown): NormalizedLandmark {
+  const o = l as Record<string, number>;
+  return {
+    x: Number(o?.x ?? 0),
+    y: Number(o?.y ?? 0),
+    z: Number(o?.z ?? 0),
+    visibility: Number(o?.visibility ?? 1),
+  };
 }
 
 type Props = {
   imageSrc: string;
-  landmarks: LandmarkLike[][] | null;
+  landmarks: unknown[][] | null;
   className?: string;
 };
 
@@ -42,8 +46,8 @@ export default function PoseSkeletonCanvas({
 
       ctx.drawImage(img, 0, 0);
 
-      if (landmarks && landmarks.length > 0) {
-        const poseLandmarks = landmarks[0].map(toNormalizedLandmark);
+      if (landmarks && Array.isArray(landmarks) && landmarks.length > 0) {
+        const poseLandmarks = (landmarks[0] as unknown[]).map(toNormalizedLandmark);
         const drawingUtils = new DrawingUtils(ctx);
         drawingUtils.drawConnectors(poseLandmarks, POSE_CONNECTIONS, {
           color: "#00FF88",
