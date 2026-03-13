@@ -1,6 +1,16 @@
 "use client"
 
 import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
+/**
+ * Renders a responsive webcam feed with MediaPipe pose detection and an optional
+ * skeleton callback for consuming landmark snapshots.
+ *
+ * @param props Component configuration.
+ * @param props.onSkeletonUpdate Called with the latest pose snapshot at the configured interval.
+ * @param props.callbackIntervalMs Minimum time between snapshot callback invocations.
+ * @param props.showPoseStatus Controls whether the pose detection status badge is shown.
+ * @param props.frameSize Required target frame dimensions used for aspect ratio and camera constraints.
+ */
 import {
   PoseLandmarker,
   FilesetResolver,
@@ -36,6 +46,7 @@ const drawPoseLandmarks = (
     });
   }
 };
+
 
 const PoseCamera: React.FC<PoseCameraProps> = ({
   onSkeletonUpdate,
