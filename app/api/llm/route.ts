@@ -27,8 +27,11 @@ async function askGemini(user_skeleton: string, chosen_skeleton: string) {
 
     Rules:
     - Only output one sentence.
+    - Address the user skeleton as "you"
+    - Keep it natural and friendly
     - Keep it simple and clear.
     - Do not include explanations
+    - Maximum 20 words
     `;
 
   const result = await genAI.models.generateContent({
