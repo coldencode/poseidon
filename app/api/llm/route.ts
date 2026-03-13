@@ -1,13 +1,17 @@
 import { GoogleGenAI } from "@google/genai";
 import { NextResponse } from "next/server";
+import fs from "fs";
+import fetch from "node-fetch";
 
 // Gemini
 const genAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY});
 
 /**
- * Compare user skeleton and chosen
- * @param user_skeleton
- * @returns the output of Gemini that give instruction to match the target
+ * Compare a user skeleton with a target skeleton and generate a short improvement instruction.
+ *
+ * @param {string} user_skeleton - The user's BODY_25 skeleton (25 keypoints with x,y,confidence)
+ * @param {string} chosen_skeleton - The target BODY_25 skeleton
+ * @returns {Promise<{success: boolean, response: string}>} - Object containing success flag and one-sentence improvement instruction
  */
 async function askGemini(user_skeleton: string, chosen_skeleton: string) {
 
@@ -45,9 +49,55 @@ async function askGemini(user_skeleton: string, chosen_skeleton: string) {
 }
 
 /**
- * 
- * @param req 
- * @returns a json containing the the output of Gemini
+ * Convert text to speech using Murf TTS and save it as an MP3 file.
+ *
+ * @param {string} text - The text to convert to speech
+ * @returns {Promise<string>} - Path to the generated MP3 file
+ */
+async function murfTTS(text: string) {
+  const response = await fetch("https://api.murf.ai/v1/speech/stream", {
+    method: "POST",
+    headers: {
+      "api-key": process.env.MURF_API_KEY!,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      text,
+      voiceId: "Matthew",
+      model: "FALCON",
+      locale: "en-US",
+    }),
+  });
+
+  // Read response as ArrayBuffer and convert to Buffer
+  const arrayBuffer = await response.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+  const filePath = `./public/mp3_output${Date.now()}.mp3`;
+
+  // Save audio to file
+  fs.writeFileSync(filePath, buffer);
+  console.log(`Audio saved to ${filePath}`);
+  return filePath;
+}
+
+/**
+ * POST API endpoint to compare BODY_25 skeletons and generate TTS audio.
+ *
+ * Expects JSON body:
+ * {
+ *   "user_skeleton": "[[x, y, confidence], ...]",
+ *   "chosen_skeleton": "[[x, y, confidence], ...]"
+ * }
+ *
+ * Returns JSON:
+ * {
+ *   "success": true,
+ *   "response": "Instruction text",
+ *   "text_to_speech": "./public/mp3_output123456789.mp3"
+ * }
+ *
+ * @param {Request} req - The incoming HTTP request
+ * @returns {Promise<NextResponse>} - JSON response with Gemini text and audio file location
  */
 export async function POST(req: Request) {
   const { user_skeleton, chosen_skeleton } = await req.json();
@@ -60,8 +110,14 @@ export async function POST(req: Request) {
   }
 
   try {
+    // Get Gemini output
     const response = await askGemini(user_skeleton, chosen_skeleton);
-    return NextResponse.json(response);
+
+    // Audio location
+    const text_to_speech = await murfTTS(response.response);
+
+    return NextResponse.json({...response, text_to_speech});
+
   } catch (e) {
     return NextResponse.json({
       success: false,
