@@ -8,7 +8,7 @@ export default function Dashboard() {
       style={{
         position: "relative",
         width: "100vw",
-        minHeight: "100vh",
+        height: "100vh",
       }}
     >
       <div className={styles.dashboardBackground}>
@@ -27,7 +27,7 @@ export default function Dashboard() {
         </div>
         <div className={styles.splineOverlay} />
 
-        <div style={{ position: "relative", zIndex: 10, marginBottom: "-10%", }}>
+        <div style={{ position: "relative", zIndex: 10, marginBottom: "-10%"}}>
           <PoseDashboard />
         </div>
       </div>
