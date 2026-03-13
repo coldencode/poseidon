@@ -35,7 +35,6 @@ async function askGemini(user_skeleton: string, chosen_skeleton: string) {
     - Keep it natural and friendly
     - Keep it simple and clear.
     - Do not include explanations
-    - Maximum 20 words
     `;
 
   const result = await genAI.models.generateContent({
