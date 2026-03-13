@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function Home() {
   return (
     <div className="relative min-h-screen overflow-hidden bg-slate-950 font-sans">
@@ -34,6 +36,12 @@ export default function Home() {
           <div className="h-1 w-8 rounded-full bg-blue-500/40" />
           <div className="h-1 w-16 rounded-full bg-indigo-500/50" />
         </div>
+        <Link
+          href="/pose"
+          className="mt-12 min-h-[48px] min-w-[160px] rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 px-8 py-3 text-center text-base font-semibold text-white shadow-lg shadow-cyan-500/25 transition hover:from-cyan-400 hover:to-blue-500 active:scale-[0.98]"
+        >
+          Start
+        </Link>
       </main>
     </div>
   );
