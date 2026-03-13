@@ -1,38 +1,49 @@
+import Link from "next/link";
+
 export default function Home() {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-slate-950 font-sans">
-      {/* Video background - darkened and blurred */}
-      <video
-        autoPlay
-        muted
-        loop
-        playsInline
-        className="absolute inset-0 h-full w-full object-cover opacity-40 blur-sm"
-      >
-        <source src="/ocean.mp4" type="video/mp4" />
-      </video>
+    <div className="min-h-screen bg-gradient-to-b from-sky-50 via-white to-rose-50 px-4 py-6 text-slate-900">
+      <main className="mx-auto flex min-h-[calc(100dvh-3rem)] w-full max-w-sm flex-col justify-between rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-[0_24px_60px_-32px_rgba(15,23,42,0.35)] backdrop-blur">
+        <div>
+          <p className="text-xs tracking-[0.24em] text-sky-600 uppercase">POSE COACHING APP</p>
+          <h1 className="mt-4 text-4xl font-bold leading-tight">
+            Welcome to <span className="bg-gradient-to-r from-sky-500 to-fuchsia-500 bg-clip-text text-transparent">Poseidon</span>
+          </h1>
+          <p className="mt-3 text-sm text-slate-600">
+            Learn better poses with guided practice and real-time feedback.
+          </p>
 
-      {/* Dark overlay */}
-      <div className="absolute inset-0 bg-slate-950/60" />
+          <div className="mt-6 flex items-center gap-2 text-xs text-slate-500">
+            <span className="rounded-full bg-sky-100 px-2.5 py-1 font-medium text-sky-700">Creator Mode</span>
+            <span className="rounded-full bg-fuchsia-100 px-2.5 py-1 font-medium text-fuchsia-700">Social Ready</span>
+          </div>
+        </div>
 
-      {/* Background pattern */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(56,189,248,0.15),transparent)]" />
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#33415512_1px,transparent_1px),linear-gradient(to_bottom,#33415512_1px,transparent_1px)] bg-[size:4rem_4rem]" />
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label htmlFor="email" className="text-xs font-medium tracking-wide text-slate-500 uppercase">
+              Email Sign Up
+            </label>
+            <input
+              id="email"
+              type="email"
+              placeholder="you@example.com"
+              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none ring-sky-300 transition focus:border-sky-300 focus:ring-2"
+            />
+            <button
+              type="button"
+              className="w-full rounded-xl bg-gradient-to-r from-sky-500 to-fuchsia-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-sky-200 transition hover:opacity-95"
+            >
+              Get Started
+            </button>
+          </div>
 
-      <main className="relative flex min-h-screen flex-col items-center justify-center px-6">
-        <span className="mb-8 text-sm font-medium tracking-[0.3em] text-cyan-400/80 uppercase">
-          UNIHACK 2026
-        </span>
-        <h1 className="max-w-2xl text-center text-5xl font-bold tracking-tight text-white sm:text-7xl">
-          Get Started with{" "}
-          <span className="bg-gradient-to-r from-cyan-400 via-blue-500 to-indigo-500 bg-clip-text text-transparent">
-            Poseidon
-          </span>
-        </h1>
-        <div className="mt-12 flex gap-3">
-          <div className="h-1 w-12 rounded-full bg-cyan-500/60" />
-          <div className="h-1 w-8 rounded-full bg-blue-500/40" />
-          <div className="h-1 w-16 rounded-full bg-indigo-500/50" />
+          <Link
+            href="/poses"
+            className="block w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-center text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:text-sky-700"
+          >
+            Continue as Guest
+          </Link>
         </div>
       </main>
     </div>

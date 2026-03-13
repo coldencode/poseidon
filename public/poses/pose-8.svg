@@ -1,0 +1,13 @@
+<svg width="360" height="500" viewBox="0 0 360 500" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="360" height="500" rx="24" fill="#0F172A"/>
+  <rect x="24" y="24" width="312" height="452" rx="20" fill="url(#g8)"/>
+  <circle cx="206" cy="172" r="48" fill="#111827" fill-opacity="0.62"/>
+  <path d="M138 254C152 236 170 230 188 230C210 230 232 242 242 262L254 286L224 302L212 282L196 344L162 336L176 282L154 266L138 254Z" fill="#111827" fill-opacity="0.62"/>
+  <text x="180" y="428" text-anchor="middle" fill="#E0F2FE" font-size="24" font-family="Arial">Profile Turn</text>
+  <defs>
+    <linearGradient id="g8" x1="24" y1="24" x2="336" y2="476" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1D4ED8"/>
+      <stop offset="1" stop-color="#9333EA"/>
+    </linearGradient>
+  </defs>
+</svg>

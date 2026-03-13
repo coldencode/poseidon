@@ -1,0 +1,13 @@
+<svg width="360" height="480" viewBox="0 0 360 480" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="360" height="480" rx="24" fill="#0F172A"/>
+  <rect x="24" y="24" width="312" height="432" rx="20" fill="url(#g1)"/>
+  <circle cx="180" cy="164" r="52" fill="#0B1020" fill-opacity="0.6"/>
+  <path d="M150 240C150 224 162 212 180 212C198 212 210 224 210 240V320H150V240Z" fill="#0B1020" fill-opacity="0.6"/>
+  <text x="180" y="406" text-anchor="middle" fill="#D1FAE5" font-size="24" font-family="Arial">Power Stance</text>
+  <defs>
+    <linearGradient id="g1" x1="24" y1="24" x2="336" y2="456" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#06B6D4"/>
+      <stop offset="1" stop-color="#2563EB"/>
+    </linearGradient>
+  </defs>
+</svg>
