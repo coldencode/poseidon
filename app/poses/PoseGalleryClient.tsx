@@ -50,7 +50,7 @@ export default function PoseGalleryClient({ poses }: PoseGalleryClientProps) {
                   alt={pose.title}
                   width={360}
                   height={560}
-                  className="h-auto w-full object-cover"
+                  className="h-96 w-full object-cover"
                 />
                 <div className="px-3 py-2 text-sm font-medium text-slate-700">{pose.title}</div>
               </button>
