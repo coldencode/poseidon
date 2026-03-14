@@ -3,27 +3,63 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import PoseCamera from "@/src/components/pose-camera/PoseCamera";
+import { NormalizedLandmark } from "@mediapipe/tasks-vision";
 
 type PoseLibraryItem = {
   id: string;
   image: string;
-  landmarks: unknown[];
+  landmarks: NormalizedLandmark[][];
 };
 
 const POSE_IDS = ["pose1", "pose2"];
+const POSE_REDUCTION_KEEP: [number, string][] = [
+  [0, "nose"],
+  [7, "left_wrist"],
+  [8, "right_wrist"],
+  [11, "left_hip"],
+  [12, "right_hip"],
+  [13, "left_knee"],
+  [14, "right_knee"],
+  [15, "left_ankle"],
+  [16, "right_ankle"],
+  [19, "left_thumb"],
+  [20, "right_thumb"],
+  [23, "left_elbow"],
+  [24, "right_elbow"],
+  [25, "left_shoulder"],
+  [26, "right_shoulder"],
+  [27, "left_heel"],
+  [28, "right_heel"],
+  [31, "left_foot_index"],
+  [32, "right_foot_index"]];
 
-function getLandmarksForApi(landmarks: unknown): string {
+function getLandmarksForApi(landmarks: NormalizedLandmark[][] | null): string {
   if (!landmarks) return "";
   const arr = Array.isArray(landmarks) ? landmarks : [landmarks];
-  const firstPose = Array.isArray(arr[0]) ? arr[0] : arr;
-  return JSON.stringify(firstPose);
+  const firstPose: NormalizedLandmark[] = Array.isArray(arr[0])
+    ? arr[0]
+    : (arr as unknown as NormalizedLandmark[]);
+
+  const reducedLandmarks = firstPose
+    .filter((_, idx) => POSE_REDUCTION_KEEP.some(([keepIdx]) => keepIdx === idx))
+    .map((lm, i) => ([
+      lm.x.toFixed(5),
+      lm.y.toFixed(5),
+      lm.z.toFixed(5),
+      lm.visibility.toFixed(5),
+    ]));
+  return JSON.stringify(reducedLandmarks);
 }
 
 export default function PosePage() {
-  const [landmarks, setLandmarks] = useState<unknown>(null);
+  const [landmarks, setLandmarks] = useState<NormalizedLandmark[][] | null>(
+    null,
+  );
   const [lastUpdate, setLastUpdate] = useState<number | null>(null);
   const [poseLibrary, setPoseLibrary] = useState<PoseLibraryItem[]>([]);
-  const [selectedPose, setSelectedPose] = useState<PoseLibraryItem | null>(null);
+  const [selectedPose, setSelectedPose] = useState<PoseLibraryItem | null>(
+    null,
+  );
   const [llmResponse, setLlmResponse] = useState<string | null>(null);
   const [llmLoading, setLlmLoading] = useState(false);
   const [llmError, setLlmError] = useState<string | null>(null);
@@ -56,7 +92,9 @@ export default function PosePage() {
       : "";
 
     if (!userSkeleton || !chosenSkeleton) {
-      setLlmError("Need both a current pose and a selected pose from the library.");
+      setLlmError(
+        "Need both a current pose and a selected pose from the library.",
+      );
       return;
     }
 
