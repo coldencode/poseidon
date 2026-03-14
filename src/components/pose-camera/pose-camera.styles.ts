@@ -3,9 +3,8 @@ import type React from "react";
 export const styles: Record<string, React.CSSProperties> = {
   container: {
     width: "100%",
-    maxWidth: "960px",
-    margin: "0 auto",
-    padding: "0 clamp(12px, 4vw, 24px)",
+    margin: 0,
+    padding: 0,
     boxSizing: "border-box",
   },
   statsOverlay: {

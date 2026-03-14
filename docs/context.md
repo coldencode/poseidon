@@ -64,3 +64,5 @@ PWA install	✅ Both iOS and Android
 7. Every 3 - 5 seconds, VLM api is called for natural language coaching text/audio
 8. When pose match exceeds threshold -> auto-capture photo
 9. User reviews photo, can retake or save 
+
+## Visual Pose Guidance 
