@@ -308,14 +308,14 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
   const cameraConstraints = useMemo(
     () =>
       ({
-        video: {
-          facingMode,
-          width: { ideal: safeFrameSize.width },
-          height: { ideal: safeFrameSize.height },
-        },
+        // Do NOT constrain width/height here — doing so forces a low-resolution
+        // stream (e.g. 640×480) that looks blurry when stretched to fill modern
+        // high-DPI screens. Let the browser negotiate the camera's native
+        // resolution. frameSize is used only for the container's aspect ratio.
+        video: { facingMode },
         audio: false,
       }) satisfies MediaStreamConstraints,
-    [facingMode, safeFrameSize.height, safeFrameSize.width]
+    [facingMode]
   );
 
   const cameraContainerStyle = useMemo<React.CSSProperties>(
