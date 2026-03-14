@@ -1,17 +1,9 @@
 import { MongoClient, Collection, Document } from "mongodb";
 
-const uri = process.env.MONGODB_URI;
 const dbName = process.env.MONGODB_DB ?? "poseidon_db";
 const collectionName = process.env.MONGODB_COLLECTION ?? "poses";
 
-if (!uri) {
-  throw new Error(
-    "Please add MONGODB_URI to .env.local. Get it from https://www.mongodb.com/atlas"
-  );
-}
-
 declare global {
-  // eslint-disable-next-line no-var
   var _mongoClient: MongoClient | undefined;
 }
 
@@ -20,10 +12,18 @@ declare global {
  * Reuses the connection across hot reloads and requests.
  */
 function getClient(): MongoClient {
+  const uri = process.env.MONGODB_URI;
+
+  if (!uri) {
+    throw new Error(
+      "Please add MONGODB_URI to .env.local. Get it from https://www.mongodb.com/atlas"
+    );
+  }
+
   if (global._mongoClient) {
     return global._mongoClient;
   }
-  global._mongoClient = new MongoClient(uri!);
+  global._mongoClient = new MongoClient(uri);
   return global._mongoClient;
 }
 
