@@ -7,12 +7,16 @@ export function createArrowBetweenPoints(
   color = 0xffffff,
   headLengthRatio = 0.2,
   headWidthRatio = 0.1,
-): THREE.ArrowHelper {
-  const posA = new THREE.Vector3(pointA.x, -pointA.y, pointA.z);
-  const posB = new THREE.Vector3(pointB.x, -pointB.y, pointB.z);
+): THREE.ArrowHelper | null {
+  const posA = new THREE.Vector3(pointA.x, -pointA.y, -pointA.z);
+  const posB = new THREE.Vector3(pointB.x, -pointB.y, -pointB.z);
 
   const direction = new THREE.Vector3().subVectors(posB, posA).normalize();
   const length = posA.distanceTo(posB);
+
+  console.log(length);
+
+  if (length < 0.2) return null;
 
   return new THREE.ArrowHelper(
     direction,
@@ -30,22 +34,15 @@ export const MEDIAPIPE_CONNECTIONS: {
   radius: number;
 }[] = [
   // Face
-    { start: 0, end: 1, radius: 0.02 },
-    { start: 1, end: 2, radius: 0.02 },
-  //   { start: 2, end: 3, radius: 0.02 },
-  //   { start: 3, end: 7, radius: 0.02 },
-  //   { start: 0, end: 4, radius: 0.02 },
-  //   { start: 4, end: 5, radius: 0.02 },
-  //   { start: 5, end: 6, radius: 0.02 },
-  //   { start: 6, end: 8, radius: 0.02 },
-    { start: 9, end: 10, radius: 0.025 }, // mouth
+  { start: 0, end: 1, radius: 0.02 },
+  { start: 1, end: 2, radius: 0.02 },
+  { start: 9, end: 10, radius: 0.025 }, // mouth
 
   // Torso (thickest)
   { start: 11, end: 12, radius: 0.02 }, // shoulders
   { start: 11, end: 23, radius: 0.02 }, // left side torso
   { start: 12, end: 24, radius: 0.02 }, // right side torso
   { start: 23, end: 24, radius: 0.02 }, // hips
-
 
   // Arms
   { start: 11, end: 13, radius: 0.02 }, // left upper arm
@@ -54,14 +51,14 @@ export const MEDIAPIPE_CONNECTIONS: {
   { start: 14, end: 16, radius: 0.012 }, // right forearm
 
   // Hands
-//   { start: 15, end: 17, radius: 0.018 },
-//   { start: 15, end: 19, radius: 0.018 },
-//   { start: 15, end: 21, radius: 0.018 },
-//   { start: 17, end: 19, radius: 0.015 },
-//   { start: 16, end: 18, radius: 0.018 },
-//   { start: 16, end: 20, radius: 0.018 },
-//   { start: 16, end: 22, radius: 0.018 },
-//   { start: 18, end: 20, radius: 0.015 },
+  //   { start: 15, end: 17, radius: 0.018 },
+  //   { start: 15, end: 19, radius: 0.018 },
+  //   { start: 15, end: 21, radius: 0.018 },
+  //   { start: 17, end: 19, radius: 0.015 },
+  //   { start: 16, end: 18, radius: 0.018 },
+  //   { start: 16, end: 20, radius: 0.018 },
+  //   { start: 16, end: 22, radius: 0.018 },
+  //   { start: 18, end: 20, radius: 0.015 },
 
   // Legs
   { start: 23, end: 25, radius: 0.03 }, // left thigh
@@ -89,8 +86,9 @@ export function createDifferenceArrows(
 
   landmarks.forEach((idx) => {
     if (idx >= pose.length || idx >= reference.length) return;
+
     const arrow = createArrowBetweenPoints(pose[idx], reference[idx], color);
-    group.add(arrow);
+    if (arrow) group.add(arrow);
   });
 
   return group;

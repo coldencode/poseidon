@@ -6,7 +6,7 @@ import {
   createDifferenceArrows,
   MEDIAPIPE_CONNECTIONS,
 } from "../util";
-import { RoundedBoxGeometry } from "three/examples/jsm/Addons.js";
+
 export interface SceneState {
   renderer: THREE.WebGLRenderer;
   scene: THREE.Scene;
@@ -28,7 +28,7 @@ function buildSkeleton(pts: Point3D[], color: number, offsetX: number) {
   });
 
   // Head sphere at landmark 0 (nose), sized to feel like a real head
-  const headPos = new THREE.Vector3(pts[0].x + offsetX, -pts[0].y, pts[0].z);
+  const headPos = new THREE.Vector3((pts[0].x + offsetX), -pts[0].y, -pts[0].z);
   const headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 16), mat);
   headMesh.position.copy(headPos);
   group.add(headMesh);
@@ -37,11 +37,11 @@ function buildSkeleton(pts: Point3D[], color: number, offsetX: number) {
     if (start >= pts.length || end >= pts.length) return;
 
     const pA = new THREE.Vector3(
-      pts[start].x + offsetX,
+      (pts[start].x + offsetX),
       -pts[start].y,
-      pts[start].z,
+      -pts[start].z,
     );
-    const pB = new THREE.Vector3(pts[end].x + offsetX, -pts[end].y, pts[end].z);
+    const pB = new THREE.Vector3((pts[end].x + offsetX), -pts[end].y, -pts[end].z);
     const dir = new THREE.Vector3().subVectors(pB, pA);
     const len = dir.length();
     const mid = new THREE.Vector3().addVectors(pA, pB).multiplyScalar(0.5);
