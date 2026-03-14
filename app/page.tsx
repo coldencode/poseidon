@@ -1,5 +1,6 @@
 import Spline from '@splinetool/react-spline/next';
 import Link from "next/link";
+
 export default function Home() {
   return (
     <div className="relative min-h-screen overflow-x-hidden overflow-y-auto bg-slate-950 font-sans md:overflow-hidden">
