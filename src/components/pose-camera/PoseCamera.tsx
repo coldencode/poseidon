@@ -51,31 +51,21 @@ type DrawStyle = {
   radius: number;
 };
 
+type ProjectionRect = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
 const fitPoseLandmarksToFrame = (
   landmarks: NormalizedLandmark[]
 ): NormalizedLandmark[] => {
-  if (landmarks.length === 0) {
-    return landmarks;
-  }
-
-  const minX = Math.min(...landmarks.map((landmark) => landmark.x));
-  const maxX = Math.max(...landmarks.map((landmark) => landmark.x));
-  const minY = Math.min(...landmarks.map((landmark) => landmark.y));
-  const maxY = Math.max(...landmarks.map((landmark) => landmark.y));
-
-  const sourceCenterX = (minX + maxX) / 2;
-  const sourceCenterY = (minY + maxY) / 2;
-  const targetCenterX = 0.5;
-  const targetCenterY = 0.5;
-  const translateX = targetCenterX - sourceCenterX;
-  const translateY = targetCenterY - sourceCenterY;
-
-  return landmarks.map((landmark) => ({
-    ...landmark,
-    x: landmark.x + translateX,
-    y: landmark.y + translateY,
-  }));
+  return landmarks;
 };
+
+const isLikelyNormalizedLandmarks = (landmarks: NormalizedLandmark[]) =>
+  landmarks.every((landmark) => landmark.x >= 0 && landmark.x <= 1 && landmark.y >= 0 && landmark.y <= 1);
 
 const normalizePoseForComparison = (landmarks: NormalizedLandmark[]) => {
   const selectedPoints = SCORE_LANDMARK_INDICES
@@ -197,6 +187,76 @@ const drawPoseLandmarkSet = (
   }
 };
 
+const getCenteredMobileGuideRect = (
+  canvasWidth: number,
+  canvasHeight: number,
+  mobileAspectRatio = 9 / 16
+): ProjectionRect => {
+  const canvasAspect = canvasWidth / canvasHeight;
+
+  if (canvasAspect > mobileAspectRatio) {
+    const guideWidth = canvasHeight * mobileAspectRatio;
+    return {
+      x: (canvasWidth - guideWidth) / 2,
+      y: 0,
+      width: guideWidth,
+      height: canvasHeight,
+    };
+  }
+
+  const guideHeight = canvasWidth / mobileAspectRatio;
+  return {
+    x: 0,
+    y: (canvasHeight - guideHeight) / 2,
+    width: canvasWidth,
+    height: guideHeight,
+  };
+};
+
+const drawPoseLandmarkSetInRect = (
+  poseLandmarks: NormalizedLandmark[],
+  canvasCtx: CanvasRenderingContext2D,
+  rect: ProjectionRect,
+  style: DrawStyle
+) => {
+  const projectPoint = (landmark: NormalizedLandmark) => ({
+    x: rect.x + landmark.x * rect.width,
+    y: rect.y + landmark.y * rect.height,
+  });
+
+  canvasCtx.strokeStyle = style.connectorColor;
+  canvasCtx.lineWidth = style.lineWidth;
+  canvasCtx.fillStyle = style.pointColor;
+
+  for (const connection of POSE_CONNECTIONS) {
+    const startIndex =
+      Array.isArray(connection) ? connection[0] : connection.start;
+    const endIndex = Array.isArray(connection) ? connection[1] : connection.end;
+
+    const start = poseLandmarks[startIndex];
+    const end = poseLandmarks[endIndex];
+
+    if (!start || !end) {
+      continue;
+    }
+
+    const startPoint = projectPoint(start);
+    const endPoint = projectPoint(end);
+
+    canvasCtx.beginPath();
+    canvasCtx.moveTo(startPoint.x, startPoint.y);
+    canvasCtx.lineTo(endPoint.x, endPoint.y);
+    canvasCtx.stroke();
+  }
+
+  for (const landmark of poseLandmarks) {
+    const point = projectPoint(landmark);
+    canvasCtx.beginPath();
+    canvasCtx.arc(point.x, point.y, style.radius, 0, Math.PI * 2);
+    canvasCtx.fill();
+  }
+};
+
 
 const PoseCamera: React.FC<PoseCameraProps> = ({
   onSkeletonUpdate,
@@ -248,14 +308,14 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
   const cameraConstraints = useMemo(
     () =>
       ({
-        video: {
-          facingMode,
-          width: { ideal: safeFrameSize.width },
-          height: { ideal: safeFrameSize.height },
-        },
+        // Do NOT constrain width/height here — doing so forces a low-resolution
+        // stream (e.g. 640×480) that looks blurry when stretched to fill modern
+        // high-DPI screens. Let the browser negotiate the camera's native
+        // resolution. frameSize is used only for the container's aspect ratio.
+        video: { facingMode },
         audio: false,
       }) satisfies MediaStreamConstraints,
-    [facingMode, safeFrameSize.height, safeFrameSize.width]
+    [facingMode]
   );
 
   const cameraContainerStyle = useMemo<React.CSSProperties>(
@@ -389,17 +449,14 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
     const timestamp = performance.now();
     const result = poseLandmarker.detectForVideo(video, timestamp);
     const landmarks = result.landmarks ?? [];
+    const worldLandmarks = result.worldLandmarks ?? [];
 
     const hasPose = landmarks.length > 0;
     setPoseDetected(hasPose);
 
     if (showTargetPoseOverlay && fittedTargetPoseLandmarks && fittedTargetPoseLandmarks.length > 0) {
-      drawPoseLandmarkSet(fittedTargetPoseLandmarks, canvasCtx, {
-        videoWidth: video.videoWidth,
-        videoHeight: video.videoHeight,
-        canvasWidth: canvas.width,
-        canvasHeight: canvas.height,
-      }, {
+      const mobileGuideRect = getCenteredMobileGuideRect(canvas.width, canvas.height);
+      drawPoseLandmarkSetInRect(fittedTargetPoseLandmarks, canvasCtx, mobileGuideRect, {
         connectorColor: "rgba(56, 189, 248, 0.95)",
         pointColor: "rgba(125, 211, 252, 0.95)",
         lineWidth: 2,
@@ -408,8 +465,14 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
     }
 
     if (hasPose) {
+      const shouldScoreAgainstNormalizedTarget =
+        fittedTargetPoseLandmarks && isLikelyNormalizedLandmarks(fittedTargetPoseLandmarks);
+      const userLandmarksForScore = worldLandmarks[0] ?? landmarks[0];
       const score = fittedTargetPoseLandmarks
-        ? computePoseMatchScore(landmarks[0], fittedTargetPoseLandmarks)
+        ? computePoseMatchScore(
+            shouldScoreAgainstNormalizedTarget ? landmarks[0] : userLandmarksForScore,
+            fittedTargetPoseLandmarks
+          )
         : null;
       const currentTime = performance.now();
 

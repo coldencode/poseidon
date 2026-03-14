@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
@@ -16,7 +16,7 @@ type PoseLibraryJson = {
   worldLandmarks?: NormalizedLandmark[][];
 };
 
-export default function CameraPage() {
+function CameraPageContent() {
   const searchParams = useSearchParams();
   const selectedPoseId = searchParams.get("pose");
 
@@ -99,7 +99,9 @@ export default function CameraPage() {
         console.log(parsed)
         const firstLandmarks = Array.isArray(parsed.landmarks)
           ? parsed.landmarks[0]
-          : undefined;
+          : Array.isArray(parsed.worldLandmarks)
+            ? parsed.worldLandmarks[0]
+            : undefined;
 
         if (!isActive) {
           return;
@@ -213,5 +215,23 @@ export default function CameraPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function CameraPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gradient-to-b from-sky-50 via-white to-indigo-50 text-slate-900">
+          <main className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
+            <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
+              Loading camera...
+            </div>
+          </main>
+        </div>
+      }
+    >
+      <CameraPageContent />
+    </Suspense>
   );
 }
