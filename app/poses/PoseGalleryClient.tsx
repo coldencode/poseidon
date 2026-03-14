@@ -6,7 +6,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 type Pose = {
-  id: number;
+  id: string;
   title: string;
   image: string;
 };
@@ -34,7 +34,7 @@ export default function PoseGalleryClient({ poses }: PoseGalleryClientProps) {
 
         {poses.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-600">
-            No pose PNGs found in `public/poses`.
+            No pose JSON files found in `public/pose-library`.
           </div>
         ) : (
           <div className="columns-2 gap-3 sm:columns-3 lg:columns-4 [column-fill:_balance]">
@@ -64,7 +64,7 @@ export default function PoseGalleryClient({ poses }: PoseGalleryClientProps) {
           <div className="w-full max-w-xs rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl">
             <h2 className="text-base font-semibold">Confirm selection</h2>
             <p className="mt-2 text-sm text-slate-600">
-              Open camera now for live landmark detection only?
+              Open camera with <span className="font-semibold">{selectedPose.title}</span> as target overlay?
             </p>
             <div className="mt-4 flex gap-2">
               <button
@@ -77,7 +77,7 @@ export default function PoseGalleryClient({ poses }: PoseGalleryClientProps) {
               <button
                 type="button"
                 onClick={() => {
-                  router.push("/camera");
+                  router.push(`/camera?pose=${encodeURIComponent(selectedPose.id)}`);
                   setSelectedPose(null);
                 }}
                 className="flex-1 rounded-xl bg-gradient-to-r from-sky-500 to-fuchsia-500 px-3 py-2 text-sm font-semibold text-white"

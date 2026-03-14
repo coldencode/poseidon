@@ -3,12 +3,22 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import PoseCamera from "@/src/components/pose-camera/PoseCamera";
+import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
 
 const PHOTO_STORAGE_KEY = "poseidon.captures";
 const MAX_CAPTURE_HISTORY = 12;
 
+type PoseLibraryJson = {
+  pose?: string;
+  landmarks?: NormalizedLandmark[][];
+};
+
 export default function CameraPage() {
+  const searchParams = useSearchParams();
+  const selectedPoseId = searchParams.get("pose");
+
   const [isMobileViewport, setIsMobileViewport] = useState(() => {
     if (typeof window === "undefined") {
       return true;
@@ -37,6 +47,12 @@ export default function CameraPage() {
 
     return [];
   });
+  const [targetPoseLandmarks, setTargetPoseLandmarks] = useState<
+    NormalizedLandmark[] | undefined
+  >(undefined);
+  const [targetPoseImage, setTargetPoseImage] = useState<string | null>(null);
+  const [targetPoseLabel, setTargetPoseLabel] = useState<string | null>(null);
+  const [poseMatchScore, setPoseMatchScore] = useState<number | null>(null);
 
   const handlePhotoCaptured = useCallback((imageDataUrl: string) => {
     setCapturedPhotos((previousPhotos) => {
@@ -61,6 +77,54 @@ export default function CameraPage() {
     };
   }, []);
 
+  useEffect(() => {
+    let isActive = true;
+
+    const loadTargetPose = async () => {
+      if (!selectedPoseId) {
+        setTargetPoseLandmarks(undefined);
+        setTargetPoseImage(null);
+        setTargetPoseLabel(null);
+        return;
+      }
+
+      try {
+        const response = await fetch(`/pose-library/${selectedPoseId}.json`);
+        if (!response.ok) {
+          throw new Error("Failed to load selected pose");
+        }
+
+        const parsed = (await response.json()) as PoseLibraryJson;
+        const firstLandmarks = Array.isArray(parsed.landmarks)
+          ? parsed.landmarks[0]
+          : undefined;
+
+        if (!isActive) {
+          return;
+        }
+
+        setTargetPoseLandmarks(firstLandmarks);
+        setTargetPoseImage(
+          parsed.pose ? `/pose-library/${parsed.pose}` : `/pose-library/${selectedPoseId}.png`
+        );
+        setTargetPoseLabel(selectedPoseId.replace(/[-_]+/g, " "));
+      } catch {
+        if (!isActive) {
+          return;
+        }
+        setTargetPoseLandmarks(undefined);
+        setTargetPoseImage(null);
+        setTargetPoseLabel(null);
+      }
+    };
+
+    loadTargetPose();
+
+    return () => {
+      isActive = false;
+    };
+  }, [selectedPoseId]);
+
   const frameSize = useMemo(
     () => ({
       width: isMobileViewport ? 9 : 16,
@@ -76,11 +140,34 @@ export default function CameraPage() {
           <div>
             <p className="text-xs tracking-[0.24em] text-sky-600 uppercase">POSEIDON CAMERA</p>
             <h1 className="mt-1 text-lg font-semibold leading-tight">Live Landmark Detection</h1>
+            {targetPoseLabel ? (
+              <p className="mt-1 text-xs text-slate-500">
+                Target overlay: <span className="font-medium capitalize">{targetPoseLabel}</span>
+              </p>
+            ) : null}
           </div>
           <Link href="/poses" className="text-xs text-slate-500 underline underline-offset-4">
             Change
           </Link>
         </div>
+
+        {targetPoseImage ? (
+          <div className="mb-3 flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-2">
+            <Image
+              src={targetPoseImage}
+              alt="Selected target pose"
+              width={40}
+              height={52}
+              className="h-13 w-10 rounded-md border border-slate-200 object-cover"
+            />
+            <p className="text-xs text-slate-600">
+              Match your live pose to the overlaid skeleton guide.
+            </p>
+            <span className="ml-auto rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
+              Score: {poseMatchScore !== null ? `${poseMatchScore}%` : "--"}
+            </span>
+          </div>
+        ) : null}
 
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 p-2">
           <PoseCamera
@@ -88,6 +175,9 @@ export default function CameraPage() {
             showPoseStatus
             showControls
             onPhotoCaptured={handlePhotoCaptured}
+            targetPoseLandmarks={targetPoseLandmarks}
+            showTargetPoseOverlay
+            onPoseMatchScoreUpdate={setPoseMatchScore}
           />
         </div>
 

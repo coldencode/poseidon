@@ -9,9 +9,12 @@ export type PoseSnapshot = {
 export type PoseCameraProps = {
   onSkeletonUpdate?: (snapshot: PoseSnapshot) => void;
   onPhotoCaptured?: (imageDataUrl: string) => void;
+  onPoseMatchScoreUpdate?: (score: number | null) => void;
   callbackIntervalMs?: number;
   showPoseStatus?: boolean;
   showControls?: boolean;
+  targetPoseLandmarks?: NormalizedLandmark[];
+  showTargetPoseOverlay?: boolean;
   frameSize: {
     width: number;
     height: number;
