@@ -5,20 +5,11 @@ export default function Home() {
   return (
     <div className="relative min-h-screen overflow-hidden font-sans">
 
-      {/* Video background */}
-      <video
-        autoPlay
-        muted
-        loop
-        playsInline
-        className="absolute inset-0 h-full w-full object-cover opacity-40 blur-sm -z-20"
-      >
-        <source src="/ocean.mp4" type="video/mp4" />
-      </video>
+      {/* Background image */}
+      <div className="absolute inset-0 -z-20 bg-cover bg-center" style={{ backgroundImage: "url('/background.jpg')" }} />
 
       {/* Background gradients */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(56,189,248,0.15),transparent)] -z-10" />
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#33415512_1px,transparent_1px),linear-gradient(to_bottom,#33415512_1px,transparent_1px)] bg-[size:4rem_4rem] -z-10" />
 
       {/* Spline scene */}
       <div className="absolute inset-0 z-0">
