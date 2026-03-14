@@ -17,3 +17,30 @@ export type PoseCameraProps = {
     height: number;
   };
 };
+
+
+export interface Point3D {
+  x: number;
+  y: number;
+  z: number;
+  visibility?: number;
+}
+
+export interface Connection {
+    start: number;
+    end: number;
+}
+
+export type Landmark = {
+  x: number;
+  y: number;
+  z: number;
+  visibility: number;
+};
+
+export type Pose = {
+  pose: string;
+  landmarks: Landmark[][];
+  worldLandmarks: Landmark[][];
+  hasPose: boolean;
+};
