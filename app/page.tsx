@@ -33,7 +33,7 @@ export default function Home() {
         <Spline scene="https://prod.spline.design/qMRygh2Rcm1RQVZD/scene.splinecode" />
         {/* Button near bottom of Spline */}
         <Link
-          href="/pose"
+          href="/poses"
           className="absolute bottom-16 left-[42%] -translate-x-1/2 z-10 rounded-xl px-10 py-3 text-white font-semibold shadow-lg hover:brightness-90 transition"
           style={{ backgroundColor: "#93B5F4" }}
         >
