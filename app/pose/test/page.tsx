@@ -7,7 +7,9 @@ import PoseSkeletonCanvas from "@/src/components/pose-skeleton/PoseSkeletonCanva
 const POSE_IMAGES = [
   "/pose-library/pose1.png",
   "/pose-library/pose2.png",
+  "/pose-library/pose3.png",
 ];
+
 
 export default function PoseTestPage() {
   const [currentImage, setCurrentImage] = useState<string | null>(null);

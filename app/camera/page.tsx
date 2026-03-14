@@ -13,6 +13,7 @@ const MAX_CAPTURE_HISTORY = 12;
 type PoseLibraryJson = {
   pose?: string;
   landmarks?: NormalizedLandmark[][];
+  worldLandmarks?: NormalizedLandmark[][];
 };
 
 export default function CameraPage() {
@@ -93,8 +94,9 @@ export default function CameraPage() {
         if (!response.ok) {
           throw new Error("Failed to load selected pose");
         }
-
+        
         const parsed = (await response.json()) as PoseLibraryJson;
+        console.log(parsed)
         const firstLandmarks = Array.isArray(parsed.landmarks)
           ? parsed.landmarks[0]
           : undefined;
