@@ -1,0 +1,13 @@
+<svg width="360" height="420" viewBox="0 0 360 420" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="360" height="420" rx="24" fill="#0F172A"/>
+  <rect x="24" y="24" width="312" height="372" rx="20" fill="url(#g7)"/>
+  <circle cx="180" cy="136" r="44" fill="#0B1120" fill-opacity="0.58"/>
+  <path d="M146 198C158 184 170 178 182 178C198 178 212 188 218 202L232 236L204 248L194 230V278H166V230L156 248L128 236L142 202L146 198Z" fill="#0B1120" fill-opacity="0.58"/>
+  <text x="180" y="356" text-anchor="middle" fill="#ECFEFF" font-size="23" font-family="Arial">Relaxed Arms</text>
+  <defs>
+    <linearGradient id="g7" x1="24" y1="24" x2="336" y2="396" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0EA5E9"/>
+      <stop offset="1" stop-color="#6366F1"/>
+    </linearGradient>
+  </defs>
+</svg>

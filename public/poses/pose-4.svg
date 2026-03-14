@@ -1,0 +1,14 @@
+<svg width="360" height="520" viewBox="0 0 360 520" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="360" height="520" rx="24" fill="#0F172A"/>
+  <rect x="24" y="24" width="312" height="472" rx="20" fill="url(#g4)"/>
+  <rect x="84" y="84" width="192" height="352" rx="18" fill="#0B1120" fill-opacity="0.35"/>
+  <circle cx="168" cy="190" r="44" fill="#0B1120" fill-opacity="0.6"/>
+  <path d="M142 244C154 228 168 222 182 222C200 222 214 232 222 248L240 286L208 302L194 278L180 332L148 324L160 278L146 264L142 244Z" fill="#0B1120" fill-opacity="0.6"/>
+  <text x="180" y="454" text-anchor="middle" fill="#E0E7FF" font-size="24" font-family="Arial">Mirror Lean</text>
+  <defs>
+    <linearGradient id="g4" x1="24" y1="34" x2="336" y2="486" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22D3EE"/>
+      <stop offset="1" stop-color="#8B5CF6"/>
+    </linearGradient>
+  </defs>
+</svg>
