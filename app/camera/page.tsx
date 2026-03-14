@@ -94,8 +94,9 @@ function CameraPageContent() {
         if (!response.ok) {
           throw new Error("Failed to load selected pose");
         }
-
+        
         const parsed = (await response.json()) as PoseLibraryJson;
+        console.log(parsed)
         const firstLandmarks = Array.isArray(parsed.landmarks)
           ? parsed.landmarks[0]
           : Array.isArray(parsed.worldLandmarks)
