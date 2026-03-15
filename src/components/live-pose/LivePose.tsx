@@ -305,8 +305,9 @@ export default function LivePose({
   ]);
 
   return (
-    <div className="relative">
-      <PoseCamera
+    <div className="space-y-2">
+      <div className="relative">
+        <PoseCamera
         frameSize={frameSize}
         showPoseStatus={showPoseStatus}
         showControls={showControls}
@@ -328,42 +329,48 @@ export default function LivePose({
         triggerCaptureAt={triggerCaptureAt}
         onStartTimer={onStartTimer}
         timerCountdown={timerCountdown}
-      />
+        />
+      </div>
 
-      <LiveAIOutput text={liveAiText} visible={shouldShowAiOutput} fading={shouldFadeAiOutput} />
+      <div className="space-y-2">
+        <LiveAIOutput
+          text={liveAiText}
+          visible={shouldShowAiOutput}
+          fading={shouldFadeAiOutput}
+        />
 
-      {llmSlowResponseError ? (
-        <div className="absolute bottom-3 right-3 z-50 rounded-md border border-red-300 bg-red-50/95 px-2 py-1 text-xs font-medium text-red-700 shadow-sm">
-          LLM call took too long to respond.
-        </div>
-      ) : null}
+        {llmSlowResponseError ? (
+          <div className="rounded-md border border-red-300 bg-red-50/95 px-2 py-1 text-xs font-medium text-red-700 shadow-sm">
+            LLM call took too long to respond.
+          </div>
+        ) : null}
 
-      {/* Debug status badge */}
-      <div className="absolute bottom-2 left-2 z-50 flex max-w-[calc(100%-1rem)] flex-col gap-0.5 rounded-lg border border-white/20 bg-black/70 px-2.5 py-1.5 font-mono text-[11px] leading-tight text-white shadow-md backdrop-blur-sm">
-        <div className="flex items-center gap-1.5">
-          <span
-            className={`inline-block h-2 w-2 shrink-0 rounded-full ${
-              debugStatus === "requesting"
-                ? "animate-pulse bg-yellow-400"
-                : debugStatus === "received"
-                  ? "bg-green-400"
-                  : debugStatus === "failed" || debugStatus === "aborted"
-                    ? "bg-red-400"
-                    : debugStatus === "skipped"
-                      ? "bg-slate-400"
-                      : "bg-slate-600"
-            }`}
-          />
-          <span className="font-semibold uppercase tracking-widest opacity-90">{debugStatus}</span>
-          {isAwaitingLlmResponse ? (
-            <span className="ml-1 opacity-60">(waiting…)</span>
-          ) : msUntilNextPhoto !== null ? (
-            <span className="ml-1 opacity-60">next in {(msUntilNextPhoto / 1000).toFixed(1)}s</span>
+        <div className="flex w-full flex-col gap-0.5 rounded-lg border border-white/20 bg-black/70 px-2.5 py-1.5 font-mono text-[11px] leading-tight text-white shadow-md backdrop-blur-sm">
+          <div className="flex items-center gap-1.5">
+            <span
+              className={`inline-block h-2 w-2 shrink-0 rounded-full ${
+                debugStatus === "requesting"
+                  ? "animate-pulse bg-yellow-400"
+                  : debugStatus === "received"
+                    ? "bg-green-400"
+                    : debugStatus === "failed" || debugStatus === "aborted"
+                      ? "bg-red-400"
+                      : debugStatus === "skipped"
+                        ? "bg-slate-400"
+                        : "bg-slate-600"
+              }`}
+            />
+            <span className="font-semibold uppercase tracking-widest opacity-90">{debugStatus}</span>
+            {isAwaitingLlmResponse ? (
+              <span className="ml-1 opacity-60">(waiting…)</span>
+            ) : msUntilNextPhoto !== null ? (
+              <span className="ml-1 opacity-60">next in {(msUntilNextPhoto / 1000).toFixed(1)}s</span>
+            ) : null}
+          </div>
+          {debugDetail ? (
+            <span className="truncate opacity-70">{debugDetail}</span>
           ) : null}
         </div>
-        {debugDetail ? (
-          <span className="truncate opacity-70">{debugDetail}</span>
-        ) : null}
       </div>
     </div>
   );

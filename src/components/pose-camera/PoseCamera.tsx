@@ -639,7 +639,8 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
   const [poseMatchScore, setPoseMatchScore] = useState<number | null>(null);
   const [relativeDistanceGuidance, setRelativeDistanceGuidance] =
     useState<RelativeDistanceGuidance | null>(null);
-  const [showModelSkeleton, setShowModelSkeleton] = useState(true);
+  const [showModelSkeleton, setShowModelSkeleton] = useState(false);
+  const [showUserSkeleton, setShowUserSkeleton] = useState(false);
 
   const safeFrameSize = useMemo(
     () => ({
@@ -876,18 +877,20 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
           }
         }
       }
-      for (const poseLandmarks of landmarks) {
-        drawPoseLandmarkSet(poseLandmarks, canvasCtx, {
-          videoWidth: video.videoWidth,
-          videoHeight: video.videoHeight,
-          canvasWidth: canvas.width,
-          canvasHeight: canvas.height,
-        }, {
-          connectorColor: "#00FF88",
-          pointColor: "#FF3366",
-          lineWidth: 3,
-          radius: 4,
-        });
+      if (showUserSkeleton) {
+        for (const poseLandmarks of landmarks) {
+          drawPoseLandmarkSet(poseLandmarks, canvasCtx, {
+            videoWidth: video.videoWidth,
+            videoHeight: video.videoHeight,
+            canvasWidth: canvas.width,
+            canvasHeight: canvas.height,
+          }, {
+            connectorColor: "#00FF88",
+            pointColor: "#FF3366",
+            lineWidth: 3,
+            radius: 4,
+          });
+        }
       }
     } else if (poseMatchScore !== null) {
       setPoseMatchScore(null);
@@ -927,6 +930,7 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
   }, [
     showTargetPoseOverlay,
     showModelSkeleton,
+    showUserSkeleton,
     fittedTargetPoseLandmarks,
     targetPoseWorldLandmarks,
     poseMatchScore,
@@ -1088,13 +1092,20 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
               </p>
             ) : null}
             <div style={styles.controlsBar}>
+              <button
+                type="button"
+                onClick={() => setShowUserSkeleton((previous) => !previous)}
+                style={styles.controlButton}
+              >
+                {showUserSkeleton ? "Hide User Skeleton" : "Show User Skeleton"}
+              </button>
               {showTargetPoseOverlay ? (
                 <button
                   type="button"
                   onClick={() => setShowModelSkeleton((previous) => !previous)}
                   style={styles.controlButton}
                 >
-                  {showModelSkeleton ? "Hide Skeleton" : "Show Skeleton"}
+                  {showModelSkeleton ? "Hide Model Skeleton" : "Show Model Skeleton"}
                 </button>
               ) : null}
               <button
