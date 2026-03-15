@@ -48,6 +48,14 @@ function CameraPageContent() {
 
     return [];
   });
+
+  const addPhoto = (dataUrl: string) => {
+    setCapturedPhotos((prev) => {
+      const updated = [...prev, dataUrl];
+      localStorage.setItem(PHOTO_STORAGE_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  };
   const [targetPoseLandmarks, setTargetPoseLandmarks] = useState<
     NormalizedLandmark[] | undefined
   >(undefined);
@@ -59,7 +67,7 @@ function CameraPageContent() {
     setCapturedPhotos((previousPhotos) => {
       const updatedPhotos = [imageDataUrl, ...previousPhotos].slice(
         0,
-        MAX_CAPTURE_HISTORY
+        MAX_CAPTURE_HISTORY,
       );
       localStorage.setItem(PHOTO_STORAGE_KEY, JSON.stringify(updatedPhotos));
       return updatedPhotos;
@@ -94,9 +102,9 @@ function CameraPageContent() {
         if (!response.ok) {
           throw new Error("Failed to load selected pose");
         }
-        
+
         const parsed = (await response.json()) as PoseLibraryJson;
-        console.log(parsed)
+        console.log(parsed);
         const firstLandmarks = Array.isArray(parsed.landmarks)
           ? parsed.landmarks[0]
           : Array.isArray(parsed.worldLandmarks)
@@ -109,7 +117,9 @@ function CameraPageContent() {
 
         setTargetPoseLandmarks(firstLandmarks);
         setTargetPoseImage(
-          parsed.pose ? `/pose-library/${parsed.pose}` : `/pose-library/${selectedPoseId}.png`
+          parsed.pose
+            ? `/pose-library/${parsed.pose}`
+            : `/pose-library/${selectedPoseId}.png`,
         );
         setTargetPoseLabel(selectedPoseId.replace(/[-_]+/g, " "));
       } catch {
@@ -134,7 +144,7 @@ function CameraPageContent() {
       width: isMobileViewport ? 9 : 16,
       height: isMobileViewport ? 16 : 9,
     }),
-    [isMobileViewport]
+    [isMobileViewport],
   );
 
   return (
@@ -142,15 +152,25 @@ function CameraPageContent() {
       <main className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
         <div className="mb-5 flex items-start justify-between gap-3">
           <div>
-            <p className="text-xs tracking-[0.24em] text-sky-600 uppercase">POSEIDON CAMERA</p>
-            <h1 className="mt-1 text-lg font-semibold leading-tight">Live Landmark Detection</h1>
+            <p className="text-xs tracking-[0.24em] text-sky-600 uppercase">
+              POSEIDON CAMERA
+            </p>
+            <h1 className="mt-1 text-lg font-semibold leading-tight">
+              Live Landmark Detection
+            </h1>
             {targetPoseLabel ? (
               <p className="mt-1 text-xs text-slate-500">
-                Target overlay: <span className="font-medium capitalize">{targetPoseLabel}</span>
+                Target overlay:{" "}
+                <span className="font-medium capitalize">
+                  {targetPoseLabel}
+                </span>
               </p>
             ) : null}
           </div>
-          <Link href="/poses" className="text-xs text-slate-500 underline underline-offset-4">
+          <Link
+            href="/poses"
+            className="text-xs text-slate-500 underline underline-offset-4"
+          >
             Change
           </Link>
         </div>
@@ -190,7 +210,9 @@ function CameraPageContent() {
             <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">
               Client-side captures
             </p>
-            <span className="text-xs text-slate-500">{capturedPhotos.length}</span>
+            <span className="text-xs text-slate-500">
+              {capturedPhotos?.length ?? 0}
+            </span>
           </div>
 
           <div className="flex gap-2 overflow-x-auto pb-1">
@@ -211,6 +233,35 @@ function CameraPageContent() {
                 />
               ))
             )}
+            <label className="flex h-16 w-12 flex-shrink-0 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white text-slate-400 shadow-sm transition hover:border-slate-400 hover:text-slate-600">
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = () => addPhoto(reader.result as string)
+                  reader.readAsDataURL(file);
+                }}
+              />
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={1.5}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+              <span className="mt-0.5 text-[10px]">Add</span>
+            </label>
           </div>
         </div>
       </main>

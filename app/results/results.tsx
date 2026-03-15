@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import SkeletonViewer from "./skeletonViewer";
 
 import { NormalizedLandmark, PoseLandmarker } from "@mediapipe/tasks-vision";
-import { PHOTO_STORAGE_KEY, Pose } from "../types";
+import { PHOTO_STORAGE_KEY, Point3D, Pose } from "../types";
 import Image, { StaticImageData } from "next/image";
 import { useEffect, useState } from "react";
 type PoseLibraryJson = {
@@ -45,6 +45,10 @@ export default function Results({
   const selectedPoseId = searchParams.get("pose");
 
   const [userPhotos, setUserPhotos] = useState<string[]>(() => {
+    if (typeof window === "undefined") {
+      return [];
+    }
+
     const savedPhotos = localStorage.getItem(PHOTO_STORAGE_KEY);
     if (!savedPhotos) {
       return [];
@@ -62,11 +66,13 @@ export default function Results({
   });
 
   const [targetPoseLandmarks, setTargetPoseLandmarks] = useState<
-    NormalizedLandmark[] | undefined
+    Point3D[] | undefined
   >(undefined);
   const [targetPoseImage, setTargetPoseImage] = useState<string | null>(null);
   const [targetPoseLabel, setTargetPoseLabel] = useState<string | null>(null);
-  const [poseMatchScore, setPoseMatchScore] = useState<number | null>(null);
+
+  const [currentUserImage, setCurrentUserImage] = useState<string | null>(null);
+  
 
   useEffect(() => {
     let isActive = true;
@@ -87,10 +93,8 @@ export default function Results({
 
         const parsed = (await response.json()) as PoseLibraryJson;
         console.log(parsed);
-        const firstLandmarks = Array.isArray(parsed.landmarks)
-          ? parsed.landmarks[0]
-          : Array.isArray(parsed.worldLandmarks)
-            ? parsed.worldLandmarks[0]
+        const firstLandmarks = Array.isArray(parsed.worldLandmarks)
+            ? parsed.worldLandmarks[0] as Point3D[]
             : undefined;
 
         if (!isActive) {
@@ -112,6 +116,7 @@ export default function Results({
         setTargetPoseImage(null);
         setTargetPoseLabel(null);
       }
+      // console.log(targetPoseLandmarks)
     };
 
     loadTargetPose();
@@ -139,7 +144,7 @@ export default function Results({
             >
               <SkeletonViewer
                 pose={pose.worldLandmarks[0]}
-                referencePose={referencePose.worldLandmarks[0]}
+                referencePose={targetPoseLandmarks}
               />
             </div>
             <button
@@ -158,21 +163,37 @@ export default function Results({
               className="flex-1 min-h-0 rounded-lg border border-slate-200
               bg-white p-4 relative overflow-hidden shadow-sm"
             >
-              <img
-                src={photo.src}
-                alt="Reference pose"
-                className="w-full h-full object-contain rounded-lg"
-              />
+              {currentUserImage ? (
+                <div className="relative w-full h-full">
+                  <Image
+                    src={currentUserImage}
+                    alt="Your Pose"
+                    fill
+                    unoptimized
+                    className="object-contain rounded-lg"
+                  />
+                </div>
+              ) : (
+                <></>
+              )}
             </div>
             <div
               className="flex-1 min-h-0 rounded-lg border border-slate-200
               bg-white p-4 overflow-hidden shadow-sm"
             >
-              <img
-                src={referencePhoto.src}
-                alt="Reference pose"
-                className="w-full h-full object-contain rounded-lg"
-              />
+              {targetPoseImage ? (
+                <div className="relative w-full h-full">
+                  <Image
+                    src={targetPoseImage}
+                    alt="Your Pose"
+                    fill
+                    unoptimized
+                    className="object-contain rounded-lg"
+                  />
+                </div>
+              ) : (
+                <></>
+              )}
             </div>
             <button
               onClick={() => handleSaveToLibrary()}
@@ -184,22 +205,44 @@ export default function Results({
             </button>
           </div>
         </div>
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        <div className="pt-4 flex gap-2 overflow-x-auto pb-1">
           {userPhotos.length === 0 ? (
             <div className="w-full rounded-xl border border-dashed border-slate-300 bg-white px-3 py-2 text-xs text-slate-500">
               No photos yet. Take some photos to save locally on your browser.
             </div>
           ) : (
             userPhotos.map((photo, index) => (
-              <Image
+              <div
                 key={`${photo.slice(0, 24)}-${index}`}
-                src={photo}
-                alt={`Captured pose ${index + 1}`}
-                width={48}
-                height={64}
-                unoptimized
-                className="h-16 w-12 rounded-lg border border-slate-200 bg-white object-cover shadow-sm"
-              />
+                className="relative group"
+                onClick={() => setCurrentUserImage(photo)}
+              >
+                <Image
+                  src={photo}
+                  alt={`Captured pose ${index + 1}`}
+                  width={48}
+                  height={64}
+                  unoptimized
+                  className="h-16 w-12 rounded-lg border border-slate-200 bg-white object-cover shadow-sm cursor-pointer"
+                />
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const updated = userPhotos.filter((_, i) => i !== index);
+                    setUserPhotos(updated);
+                    localStorage.setItem(
+                      PHOTO_STORAGE_KEY,
+                      JSON.stringify(updated),
+                    );
+                    if (currentUserImage === photo)
+                      setCurrentUserImage(updated[0] ?? null);
+                  }}
+                  className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none items-center justify-center shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-150 hidden group-hover:flex"
+                  aria-label="Delete photo"
+                >
+                  ×
+                </button>
+              </div>
             ))
           )}
         </div>

@@ -72,8 +72,8 @@ export default function SkeletonViewer({
   pose,
   referencePose,
 }: {
-  pose: Point3D[];
-  referencePose: Point3D[];
+  pose?: Point3D[];
+  referencePose?: Point3D[];
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stateRef = useRef<Partial<SceneState>>({});
@@ -135,14 +135,23 @@ export default function SkeletonViewer({
     scene.add(new THREE.Points(dotGeometry, dotMaterial));
 
     const pivot = new THREE.Group();
+    
+    if (referencePose && pose) {
+      const poseSkeleton = buildSkeleton(pose, 0x2563eb, 0);
 
-    const poseSkeleton = buildSkeleton(pose, 0x2563eb, 0);
-    const refSkeleton = buildSkeleton(referencePose, 0xea580c, 0);
-    if (showPose) pivot.add(poseSkeleton);
-    if (showReference) pivot.add(refSkeleton);
-    if (!showPose) pivot.remove(poseSkeleton);
-    if (!showReference) pivot.remove(refSkeleton);
-
+      const refSkeleton = buildSkeleton(referencePose, 0xea580c, 0);
+      if (showReference) pivot.add(refSkeleton);
+      if (!showReference) pivot.remove(refSkeleton);
+      const arrows = createDifferenceArrows(pose, referencePose, 0x475569);
+      if (showArrows) {
+        pivot.add(arrows);
+      } else {
+        pivot.remove(arrows);
+      }
+      if (showPose) pivot.add(poseSkeleton);
+      if (!showPose) pivot.remove(poseSkeleton);
+    }
+    
     scene.add(pivot);
 
     stateRef.current = {
@@ -155,12 +164,6 @@ export default function SkeletonViewer({
       lastY: 0,
     };
 
-    const arrows = createDifferenceArrows(pose, referencePose, 0x475569);
-    if (showArrows) {
-      pivot.add(arrows);
-    } else {
-      pivot.remove(arrows);
-    }
 
     const getXY = (e: MouseEvent | TouchEvent): [number, number] =>
       "touches" in e
