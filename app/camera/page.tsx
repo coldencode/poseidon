@@ -59,17 +59,6 @@ function CameraPageContent() {
     return [];
   });
 
-  const addPhoto = (dataUrl: string) => {
-    setCapturedItems((prev) => {
-      const newItem: CapturedItem = {
-        id: crypto.randomUUID(),
-        photo: dataUrl,
-      };
-      const updated = [...prev, newItem];
-      localStorage.setItem(PHOTO_STORAGE_KEY, JSON.stringify(updated));
-      return updated;
-    });
-  };
   const [selectedCaptureIndex, setSelectedCaptureIndex] = useState<
     number | null
   >(null);
@@ -87,6 +76,9 @@ function CameraPageContent() {
   const [targetPoseLabel, setTargetPoseLabel] = useState<string | null>(null);
   const [relativeDistanceGuidance, setRelativeDistanceGuidance] =
     useState<RelativeDistanceGuidance | null>(null);
+
+  const router = useRouter();
+
   const handlePhotoCaptured = useCallback(
     (imageDataUrl: string) => {
       const capture: CapturedItem = {
@@ -96,21 +88,26 @@ function CameraPageContent() {
         targetPoseId: selectedPoseId,
         targetPoseImage: targetPoseImage,
       };
+
       setCapturedItems((previousItems) => {
         const updatedItems = [capture, ...previousItems].slice(
           0,
           MAX_CAPTURE_HISTORY,
         );
         localStorage.setItem(PHOTO_STORAGE_KEY, JSON.stringify(updatedItems));
+        setSelectedCaptureIndex(0);
+        setShowResultConfirm(true);
         return updatedItems;
       });
     },
     [latestSnapshot, selectedPoseId, targetPoseImage],
   );
+
   const handleSelectCapture = (index: number) => {
     setSelectedCaptureIndex(index);
     setShowResultConfirm(true);
   };
+
   const handleDeleteCapture = useCallback((id: string) => {
     setCapturedItems((previousItems) => {
       const updatedItems = previousItems.filter((item) => item.id !== id);
@@ -118,7 +115,7 @@ function CameraPageContent() {
       return updatedItems;
     });
   }, []);
-  const router = useRouter();
+
   const handleGoToResults = () => {
     if (selectedCaptureIndex === null) {
       return;
@@ -298,7 +295,7 @@ function CameraPageContent() {
                   const file = e.target.files?.[0];
                   if (!file) return;
                   const reader = new FileReader();
-                  reader.onload = () => addPhoto(reader.result as string);
+                  reader.onload = () => handlePhotoCaptured(reader.result as string);
                   reader.readAsDataURL(file);
                 }}
               />
