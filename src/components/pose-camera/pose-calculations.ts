@@ -6,7 +6,7 @@ import type {
 } from "@/app/types";
 
 const BONE_VISIBILITY_THRESHOLD = 0.5;
-const GUIDANCE_WARNING_SIMILARITY_THRESHOLD = 0.85;
+const GUIDANCE_WARNING_SIMILARITY_THRESHOLD = 0.8;
 
 type LimbBoneDefinition = {
   key: string;
