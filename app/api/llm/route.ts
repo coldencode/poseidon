@@ -1,7 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
 import { NextResponse } from "next/server";
-import fs from "fs";
-import fetch from "node-fetch";
 
 // Gemini
 const genAI = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY});
@@ -91,7 +89,14 @@ async function askGemini(user_skeleton: string, chosen_skeleton: string) {
     }
   });
 
-  const full_response = JSON.parse(result.text?.trim() ?? "") as {
+  const rawText = result.text?.trim() ?? "";
+  const cleanedText = rawText
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/\s*```$/, "")
+    .trim();
+
+  const full_response = JSON.parse(cleanedText) as {
     cur_pose_category: string;
     target_pose_category: string;
     necessary_improvements: string[];
@@ -101,38 +106,6 @@ async function askGemini(user_skeleton: string, chosen_skeleton: string) {
   const text = full_response.instruction;
 
   return { success: true, response: text ?? "" };
-}
-
-/**
- * Convert text to speech using Murf TTS and save it as an MP3 file.
- *
- * @param {string} text - The text to convert to speech
- * @returns {Promise<string>} - Path to the generated MP3 file
- */
-async function murfTTS(text: string) {
-  const response = await fetch("https://api.murf.ai/v1/speech/stream", {
-    method: "POST",
-    headers: {
-      "api-key": process.env.MURF_API_KEY!,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      text,
-      voiceId: "Matthew",
-      model: "FALCON",
-      locale: "en-US",
-    }),
-  });
-
-  // Read response as ArrayBuffer and convert to Buffer
-  const arrayBuffer = await response.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-  const filePath = `./public/mp3_output${Date.now()}.mp3`;
-
-  // Save audio to file
-  fs.writeFileSync(filePath, buffer);
-  console.log(`Audio saved to ${filePath}`);
-  return filePath;
 }
 
 /**
@@ -157,13 +130,14 @@ async function murfTTS(text: string) {
 export async function POST(req: Request) {
   const { user_skeleton, chosen_skeleton } = await req.json();
 
-  // console.log(user_skeleton, chosen_skeleton);
-
   if (!user_skeleton || !chosen_skeleton) {
-    return NextResponse.json({
-      success: false,
-      error: "user skeleton and chosen skeleton is required",
-    });
+    return NextResponse.json(
+      {
+        success: false,
+        error: "user skeleton and chosen skeleton is required",
+      },
+      { status: 400 }
+    );
   }
 
   try {
@@ -171,19 +145,22 @@ export async function POST(req: Request) {
     const response = await askGemini(user_skeleton, chosen_skeleton);
 
     // Audio location (optional - return text even if TTS fails)
-    let text_to_speech: string | null = null;
-    try {
-      text_to_speech = await murfTTS(response.response);
-      console.log('text to speech success');
-    } catch {
-      // TTS failed, but we still have the text response
-    }
+    const text_to_speech: string | null = null;
+    // try {
+    //   text_to_speech = await murfTTS(response.response);
+    //   console.log('text to speech success');
+    // } catch {
+    //   // TTS failed, but we still have the text response
+    // }
 
     return NextResponse.json({ ...response, text_to_speech });
   } catch (e) {
-    return NextResponse.json({
-      success: false,
-      error: String(e),
-    });
+    return NextResponse.json(
+      {
+        success: false,
+        error: String(e),
+      },
+      { status: 500 }
+    );
   }
 }

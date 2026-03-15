@@ -4,16 +4,36 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
-import PoseCamera from "@/src/components/pose-camera/PoseCamera";
+import LivePose from "@/src/components/live-pose/LivePose";
 import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
+import type { PoseSnapshot } from "@/app/types";
 
 const PHOTO_STORAGE_KEY = "poseidon.captures";
 const MAX_CAPTURE_HISTORY = 12;
+const POSE_REDUCTION_KEEP = [0, 7, 8, 11, 12, 13, 14, 15, 16, 19, 20, 23, 24, 25, 26, 27, 28, 31, 32] as const;
 
 type PoseLibraryJson = {
   pose?: string;
   landmarks?: NormalizedLandmark[][];
   worldLandmarks?: NormalizedLandmark[][];
+};
+
+const toReducedSkeletonJson = (landmarks: NormalizedLandmark[] | undefined): string => {
+  if (!landmarks || landmarks.length === 0) {
+    return "";
+  }
+
+  const reducedLandmarks = POSE_REDUCTION_KEEP
+    .map((index) => landmarks[index])
+    .filter((landmark): landmark is NormalizedLandmark => Boolean(landmark))
+    .map((landmark) => [
+      Number(landmark.x.toFixed(5)),
+      Number(landmark.y.toFixed(5)),
+      Number(landmark.z.toFixed(5)),
+      Number((landmark.visibility ?? 0).toFixed(5)),
+    ]);
+
+  return JSON.stringify(reducedLandmarks);
 };
 
 function CameraPageContent() {
@@ -54,6 +74,7 @@ function CameraPageContent() {
   const [targetPoseImage, setTargetPoseImage] = useState<string | null>(null);
   const [targetPoseLabel, setTargetPoseLabel] = useState<string | null>(null);
   const [poseMatchScore, setPoseMatchScore] = useState<number | null>(null);
+  const [chosenSkeletonForLlm, setChosenSkeletonForLlm] = useState<string>("");
 
   const handlePhotoCaptured = useCallback((imageDataUrl: string) => {
     setCapturedPhotos((previousPhotos) => {
@@ -64,6 +85,10 @@ function CameraPageContent() {
       localStorage.setItem(PHOTO_STORAGE_KEY, JSON.stringify(updatedPhotos));
       return updatedPhotos;
     });
+  }, []);
+
+  const handlePhotoCallback = useCallback((_: PoseSnapshot | null, score: number | null) => {
+    setPoseMatchScore(score);
   }, []);
 
   useEffect(() => {
@@ -86,6 +111,7 @@ function CameraPageContent() {
         setTargetPoseLandmarks(undefined);
         setTargetPoseImage(null);
         setTargetPoseLabel(null);
+        setChosenSkeletonForLlm("");
         return;
       }
 
@@ -108,6 +134,7 @@ function CameraPageContent() {
         }
 
         setTargetPoseLandmarks(firstLandmarks);
+        setChosenSkeletonForLlm(toReducedSkeletonJson(firstLandmarks));
         setTargetPoseImage(
           parsed.pose ? `/pose-library/${parsed.pose}` : `/pose-library/${selectedPoseId}.png`
         );
@@ -119,6 +146,7 @@ function CameraPageContent() {
         setTargetPoseLandmarks(undefined);
         setTargetPoseImage(null);
         setTargetPoseLabel(null);
+        setChosenSkeletonForLlm("");
       }
     };
 
@@ -174,14 +202,16 @@ function CameraPageContent() {
         ) : null}
 
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 p-2">
-          <PoseCamera
+          <LivePose
             frameSize={frameSize}
             showPoseStatus
             showControls
             onPhotoCaptured={handlePhotoCaptured}
             targetPoseLandmarks={targetPoseLandmarks}
-            showTargetPoseOverlay
-            onPoseMatchScoreUpdate={setPoseMatchScore}
+            chosenSkeletonForLlm={chosenSkeletonForLlm}
+            photoIntervalMs={5000}
+            minMatchScoreForLlm={80}
+            onPhotoCallback={handlePhotoCallback}
           />
         </div>
 
