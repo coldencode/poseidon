@@ -80,17 +80,6 @@ function CameraPageContent() {
     return [];
   });
 
-  const addPhoto = useCallback((dataUrl: string) => {
-    setCapturedItems((prev) => {
-      const newItem: CapturedItem = {
-        id: crypto.randomUUID(),
-        photo: dataUrl,
-      };
-      const updated = [newItem, ...prev].slice(0, MAX_CAPTURE_HISTORY);
-      localStorage.setItem(PHOTO_STORAGE_KEY, JSON.stringify(updated));
-      return updated;
-    });
-  }, []);
   const [selectedCaptureIndex, setSelectedCaptureIndex] = useState<
     number | null
   >(null);
@@ -109,8 +98,6 @@ function CameraPageContent() {
   const [relativeDistanceGuidance, setRelativeDistanceGuidance] =
     useState<RelativeDistanceGuidance | null>(null);
   const [chosenSkeletonForLlm, setChosenSkeletonForLlm] = useState<string>("");
-
-
   const router = useRouter();
 
   const handlePhotoCaptured = useCallback((imageDataUrl: string) => {
@@ -138,17 +125,8 @@ function CameraPageContent() {
   const handleSelectCapture = useCallback((index: number) => {
     setSelectedCaptureIndex(index);
     setShowResultConfirm(true);
-  };
-
-  const handleDeleteCapture = useCallback((id: string) => {
-    setCapturedItems((previousItems) => {
-      const updatedItems = previousItems.filter((item) => item.id !== id);
-      localStorage.setItem(PHOTO_STORAGE_KEY, JSON.stringify(updatedItems));
-      return updatedItems;
-    });
   }, []);
 
-  const router = useRouter();
   const handleGoToResults = () => {
     if (selectedCaptureIndex === null) {
       return;
