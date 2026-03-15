@@ -5,6 +5,8 @@ import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import LivePose from "@/src/components/live-pose/LivePose";
 import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
+import type { RelativeDistanceGuidance, PoseSnapshot } from "@/app/types";
+import { PHOTO_STORAGE_KEY } from "../types";
 import type { PoseSnapshot, RelativeDistanceGuidance } from "@/app/types";
 const PHOTO_STORAGE_KEY = "poseidon.captures";
 const MAX_CAPTURE_HISTORY = 12;
@@ -64,7 +66,10 @@ function CameraPageContent() {
         return parsed
           .filter((item) => item && typeof item === "object" && "photo" in item)
           .map((item) => ({
-            id: typeof item.id === "string" ? item.id : `${Date.now()}-${Math.random()}`,
+            id:
+              typeof item.id === "string"
+                ? item.id
+                : `${Date.now()}-${Math.random()}`,
             photo: String(item.photo),
             snapshot: item.snapshot,
             targetPoseId: item.targetPoseId ?? null,
@@ -76,9 +81,25 @@ function CameraPageContent() {
     }
     return [];
   });
-  const [selectedCaptureIndex, setSelectedCaptureIndex] = useState<number | null>(null);
+
+  const addPhoto = (dataUrl: string) => {
+    setCapturedItems((prev) => {
+      const newItem: CapturedItem = {
+        id: crypto.randomUUID(),
+        photo: dataUrl,
+      };
+      const updated = [...prev, newItem];
+      localStorage.setItem(PHOTO_STORAGE_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  };
+  const [selectedCaptureIndex, setSelectedCaptureIndex] = useState<
+    number | null
+  >(null);
   const [showResultConfirm, setShowResultConfirm] = useState(false);
-  const [latestSnapshot, setLatestSnapshot] = useState<PoseSnapshot | null>(null);
+  const [latestSnapshot, setLatestSnapshot] = useState<PoseSnapshot | null>(
+    null,
+  );
   const [targetPoseLandmarks, setTargetPoseLandmarks] = useState<
     NormalizedLandmark[] | undefined
   >(undefined);
@@ -87,7 +108,6 @@ function CameraPageContent() {
   >(undefined);
   const [targetPoseImage, setTargetPoseImage] = useState<string | null>(null);
   const [targetPoseLabel, setTargetPoseLabel] = useState<string | null>(null);
-  const [poseMatchScore, setPoseMatchScore] = useState<number | null>(null);
   const [relativeDistanceGuidance, setRelativeDistanceGuidance] =
     useState<RelativeDistanceGuidance | null>(null);
   const [chosenSkeletonForLlm, setChosenSkeletonForLlm] = useState<string>("");
@@ -101,17 +121,18 @@ function CameraPageContent() {
         targetPoseId: selectedPoseId,
         targetPoseImage,
       };
-      const updatedItems = [newItem, ...previousItems].slice(0, MAX_CAPTURE_HISTORY);
-      localStorage.setItem(PHOTO_STORAGE_KEY, JSON.stringify(updatedItems));
-      return updatedItems;
-    });
-  }, [latestSnapshot, selectedPoseId, targetPoseImage]);
-
-  const handlePhotoCallback = useCallback((_: PoseSnapshot | null, score: number | null) => {
-    setPoseMatchScore(score);
-  }, []);
-
-  const handleSelectCapture = useCallback((index: number) => {
+      setCapturedItems((previousItems) => {
+        const updatedItems = [capture, ...previousItems].slice(
+          0,
+          MAX_CAPTURE_HISTORY,
+        );
+        localStorage.setItem(PHOTO_STORAGE_KEY, JSON.stringify(updatedItems));
+        return updatedItems;
+      });
+    },
+    [latestSnapshot, selectedPoseId, targetPoseImage],
+  );
+  const handleSelectCapture = (index: number) => {
     setSelectedCaptureIndex(index);
     setShowResultConfirm(true);
   }, []);
@@ -167,7 +188,7 @@ function CameraPageContent() {
         if (!response.ok) {
           throw new Error("Failed to load selected pose");
         }
-        
+
         const parsed = (await response.json()) as PoseLibraryJson;
         const firstLandmarks = Array.isArray(parsed.landmarks)
           ? parsed.landmarks[0]
@@ -182,7 +203,9 @@ function CameraPageContent() {
         setChosenSkeletonForLlm(toReducedSkeletonJson(firstLandmarks));
         setTargetPoseWorldLandmarks(firstWorldLandmarks);
         setTargetPoseImage(
-          parsed.pose ? `/pose-library/${parsed.pose}` : `/pose-library/${selectedPoseId}.png`
+          parsed.pose
+            ? `/pose-library/${parsed.pose}`
+            : `/pose-library/${selectedPoseId}.png`,
         );
         setTargetPoseLabel(selectedPoseId.replace(/[-_]+/g, " "));
       } catch {
@@ -206,22 +229,32 @@ function CameraPageContent() {
       width: isMobileViewport ? 9 : 16,
       height: isMobileViewport ? 16 : 9,
     }),
-    [isMobileViewport]
+    [isMobileViewport],
   );
   return (
     <div className="min-h-screen bg-gradient-to-b from-sky-50 via-white to-indigo-50 text-slate-900">
       <main className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
         <div className="mb-5 flex items-start justify-between gap-3">
           <div>
-            <p className="text-xs tracking-[0.24em] text-sky-600 uppercase">POSEIDON CAMERA</p>
-            <h1 className="mt-1 text-lg font-semibold leading-tight">Live Landmark Detection</h1>
+            <p className="text-xs tracking-[0.24em] text-sky-600 uppercase">
+              POSEIDON CAMERA
+            </p>
+            <h1 className="mt-1 text-lg font-semibold leading-tight">
+              Live Landmark Detection
+            </h1>
             {targetPoseLabel ? (
               <p className="mt-1 text-xs text-slate-500">
-                Target overlay: <span className="font-medium capitalize">{targetPoseLabel}</span>
+                Target overlay:{" "}
+                <span className="font-medium capitalize">
+                  {targetPoseLabel}
+                </span>
               </p>
             ) : null}
           </div>
-          <Link href="/poses" className="text-xs text-slate-500 underline underline-offset-4">
+          <Link
+            href="/poses"
+            className="text-xs text-slate-500 underline underline-offset-4"
+          >
             Change
           </Link>
         </div>
@@ -234,15 +267,13 @@ function CameraPageContent() {
               height={52}
               className="h-13 w-10 rounded-md border border-slate-200 object-cover"
             />
-            <p className="text-xs text-slate-600">
-              Match your live pose to the overlaid skeleton guide.
-            </p>
-            <div className="ml-auto flex flex-col items-end gap-1">
-              <span className="rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
-                Score: {poseMatchScore !== null ? `${poseMatchScore}%` : "--"}
-              </span>
+            <div className="ml-auto flex items-center gap-2">
+              <p className="text-xs text-slate-600">
+                Match your live pose to the overlaid skeleton guide.
+              </p>
               <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">
-                Distance: {relativeDistanceGuidance
+                Distance:{" "}
+                {relativeDistanceGuidance
                   ? `${relativeDistanceGuidance.category} (${relativeDistanceGuidance.scaleRatio.toFixed(2)}x)`
                   : "--"}
               </span>
@@ -258,6 +289,7 @@ function CameraPageContent() {
             onPhotoCaptured={handlePhotoCaptured}
             targetPoseLandmarks={targetPoseLandmarks}
             targetPoseWorldLandmarks={targetPoseWorldLandmarks}
+            showTargetPoseOverlay
             onRelativeDistanceGuidanceUpdate={setRelativeDistanceGuidance}
             chosenSkeletonForLlm={chosenSkeletonForLlm}
             photoIntervalMs={5000}
@@ -270,7 +302,9 @@ function CameraPageContent() {
             <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">
               Client-side captures
             </p>
-            <span className="text-xs text-slate-500">{capturedItems.length}</span>
+            <span className="text-xs text-slate-500">
+              {capturedItems?.length ?? 0}
+            </span>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1">
             {capturedItems.length === 0 ? (
@@ -278,38 +312,47 @@ function CameraPageContent() {
                 No photos yet. Tap capture to save locally in this browser.
               </div>
             ) : (
-              capturedItems.map((item, index) => (
-                <div key={item.id} className="relative">
-                  <button
-                    onClick={() => handleSelectCapture(index)}
-                    className="rounded-lg border border-slate-200 bg-white p-0 shadow-sm transition hover:scale-[1.02]"
-                    type="button"
-                    aria-label={`Select captured pose ${index + 1} for comparison`}
-                  >
-                    <Image
-                      src={item.photo}
-                      alt={`Captured pose ${index + 1}`}
-                      width={48}
-                      height={64}
-                      unoptimized
-                      className="h-16 w-12 rounded-lg object-cover"
-                    />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteCapture(item.id);
-                    }}
-                    className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-slate-900 text-[10px] font-black text-white shadow-lg hover:bg-red-600"
-                    aria-label={`Delete captured pose ${index + 1}`}
-                    title="Delete this capture"
-                  >
-                    ×
-                  </button>
-                </div>
+              capturedItems.map((photo, index) => (
+                <Image
+                  key={`${photo.photo.slice(0, 24)}-${index}`}
+                  src={photo.photo}
+                  alt={`Captured pose ${index + 1}`}
+                  width={48}
+                  height={64}
+                  unoptimized
+                  className="h-16 w-12 rounded-lg border border-slate-200 bg-white object-cover shadow-sm"
+                />
               ))
             )}
+            <label className="flex h-16 w-12 flex-shrink-0 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white text-slate-400 shadow-sm transition hover:border-slate-400 hover:text-slate-600">
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = () => addPhoto(reader.result as string);
+                  reader.readAsDataURL(file);
+                }}
+              />
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={1.5}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+              <span className="mt-0.5 text-[10px]">Add</span>
+            </label>
           </div>
         </div>
         {showResultConfirm && selectedCaptureIndex !== null && (
@@ -317,7 +360,8 @@ function CameraPageContent() {
             <div className="w-full max-w-sm rounded-2xl bg-white p-4 shadow-xl">
               <h2 className="text-base font-semibold">Go to Results</h2>
               <p className="mt-2 text-sm text-slate-600">
-                You selected capture #{selectedCaptureIndex + 1}. Compare this photo with your target pose?
+                You selected capture #{selectedCaptureIndex + 1}. Compare this
+                photo with your target pose?
               </p>
               <div className="mt-4 flex gap-2">
                 <button

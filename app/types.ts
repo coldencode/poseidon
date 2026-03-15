@@ -49,8 +49,8 @@ export interface Point3D {
   visibility?: number;
 }
 export interface Connection {
-    start: number;
-    end: number;
+  start: number;
+  end: number;
 }
 export type Landmark = {
   x: number;
@@ -64,3 +64,12 @@ export type Pose = {
   worldLandmarks: Landmark[][];
   hasPose: boolean;
 };
+
+export type PoseData = {
+  id: string;
+  title: string;
+  image: string;
+};
+
+// for local storage
+export const PHOTO_STORAGE_KEY = "poseidon.captures";
