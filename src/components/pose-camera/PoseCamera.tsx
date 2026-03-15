@@ -197,6 +197,8 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
   onPhotoCaptured,
   onPoseMatchScoreUpdate,
   flashSignal,
+  onPoseGuidanceUpdate,
+  onRelativeDistanceGuidanceUpdate,
   callbackIntervalMs = 5000,
   showPoseStatus = false,
   showControls = true,

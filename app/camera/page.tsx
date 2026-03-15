@@ -5,8 +5,7 @@ import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import LivePose from "@/src/components/live-pose/LivePose";
 import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
-import type { PoseSnapshot } from "@/app/types";
-import type { RelativeDistanceGuidance, PoseSnapshot } from "@/app/types";
+import type { PoseSnapshot, RelativeDistanceGuidance } from "@/app/types";
 const PHOTO_STORAGE_KEY = "poseidon.captures";
 const MAX_CAPTURE_HISTORY = 12;
 const POSE_REDUCTION_KEEP = [0, 7, 8, 11, 12, 13, 14, 15, 16, 19, 20, 23, 24, 25, 26, 27, 28, 31, 32] as const;
@@ -72,7 +71,7 @@ function CameraPageContent() {
             targetPoseImage: item.targetPoseImage ?? null,
           }));
       }
-    } catch (err) {
+    } catch {
       localStorage.removeItem(PHOTO_STORAGE_KEY);
     }
     return [];
@@ -89,22 +88,44 @@ function CameraPageContent() {
   const [targetPoseImage, setTargetPoseImage] = useState<string | null>(null);
   const [targetPoseLabel, setTargetPoseLabel] = useState<string | null>(null);
   const [poseMatchScore, setPoseMatchScore] = useState<number | null>(null);
+  const [relativeDistanceGuidance, setRelativeDistanceGuidance] =
+    useState<RelativeDistanceGuidance | null>(null);
   const [chosenSkeletonForLlm, setChosenSkeletonForLlm] = useState<string>("");
 
   const handlePhotoCaptured = useCallback((imageDataUrl: string) => {
-    setCapturedPhotos((previousPhotos) => {
-      const updatedPhotos = [imageDataUrl, ...previousPhotos].slice(
-        0,
-        MAX_CAPTURE_HISTORY
-      );
-      localStorage.setItem(PHOTO_STORAGE_KEY, JSON.stringify(updatedPhotos));
-      return updatedPhotos;
+    setCapturedItems((previousItems) => {
+      const newItem: CapturedItem = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        photo: imageDataUrl,
+        snapshot: latestSnapshot ?? undefined,
+        targetPoseId: selectedPoseId,
+        targetPoseImage,
+      };
+      const updatedItems = [newItem, ...previousItems].slice(0, MAX_CAPTURE_HISTORY);
+      localStorage.setItem(PHOTO_STORAGE_KEY, JSON.stringify(updatedItems));
+      return updatedItems;
     });
-  }, []);
+  }, [latestSnapshot, selectedPoseId, targetPoseImage]);
 
   const handlePhotoCallback = useCallback((_: PoseSnapshot | null, score: number | null) => {
     setPoseMatchScore(score);
   }, []);
+
+  const handleSelectCapture = useCallback((index: number) => {
+    setSelectedCaptureIndex(index);
+    setShowResultConfirm(true);
+  }, []);
+
+  const handleDeleteCapture = useCallback((id: string) => {
+    setCapturedItems((previousItems) => {
+      const updatedItems = previousItems.filter((item) => item.id !== id);
+      localStorage.setItem(PHOTO_STORAGE_KEY, JSON.stringify(updatedItems));
+      return updatedItems;
+    });
+    setSelectedCaptureIndex(null);
+    setShowResultConfirm(false);
+  }, []);
+
   const router = useRouter();
   const handleGoToResults = () => {
     if (selectedCaptureIndex === null) {
@@ -148,7 +169,6 @@ function CameraPageContent() {
         }
         
         const parsed = (await response.json()) as PoseLibraryJson;
-        console.log(parsed)
         const firstLandmarks = Array.isArray(parsed.landmarks)
           ? parsed.landmarks[0]
           : undefined;
@@ -237,6 +257,8 @@ function CameraPageContent() {
             onSkeletonUpdate={(snapshot) => setLatestSnapshot(snapshot)}
             onPhotoCaptured={handlePhotoCaptured}
             targetPoseLandmarks={targetPoseLandmarks}
+            targetPoseWorldLandmarks={targetPoseWorldLandmarks}
+            onRelativeDistanceGuidanceUpdate={setRelativeDistanceGuidance}
             chosenSkeletonForLlm={chosenSkeletonForLlm}
             photoIntervalMs={5000}
             minMatchScoreForLlm={80}

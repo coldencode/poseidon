@@ -1,9 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import SkeletonViewer from "./skeletonViewer";
 
-import { PoseLandmarker } from "@mediapipe/tasks-vision";
 import { Pose } from "../types";
 
 export default function Results({
@@ -64,20 +64,24 @@ export default function Results({
               className="flex-1 min-h-0 rounded-lg border border-slate-700
               bg-slate-900 p-4 relative overflow-hidden"
             >
-              <img
+              <Image
                 src={photo}
                 alt="Reference pose"
-                className="w-full h-full object-contain rounded-lg"
+                fill
+                unoptimized
+                className="object-contain rounded-lg"
               />
             </div>
             <div
               className="flex-1 min-h-0 rounded-lg border border-slate-700
-              bg-slate-900 p-4 overflow-hidden"
+              bg-slate-900 p-4 relative overflow-hidden"
             >
-              <img
+              <Image
                 src={referencePhoto}
                 alt="Reference pose"
-                className="w-full h-full object-contain rounded-lg"
+                fill
+                unoptimized
+                className="object-contain rounded-lg"
               />
             </div>
             <button

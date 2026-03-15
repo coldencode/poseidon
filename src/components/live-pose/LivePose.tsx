@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
-import type { PoseSnapshot } from "@/app/types";
+import type {
+  PoseGuidanceSummary,
+  PoseSnapshot,
+  RelativeDistanceGuidance,
+} from "@/app/types";
 import PoseCamera from "@/src/components/pose-camera/PoseCamera";
 import LiveAIOutput from "@/src/components/live-pose/LiveAIOutput";
 
@@ -52,11 +56,17 @@ type LivePoseProps = {
     height: number;
   };
   targetPoseLandmarks?: NormalizedLandmark[];
+  targetPoseWorldLandmarks?: NormalizedLandmark[];
   chosenSkeletonForLlm?: string;
   photoIntervalMs?: number;
   minMatchScoreForLlm?: number;
   showPoseStatus?: boolean;
   showControls?: boolean;
+  onSkeletonUpdate?: (snapshot: PoseSnapshot) => void;
+  onPoseGuidanceUpdate?: (guidance: PoseGuidanceSummary | null) => void;
+  onRelativeDistanceGuidanceUpdate?: (
+    guidance: RelativeDistanceGuidance | null
+  ) => void;
   onPhotoCallback?: (snapshot: PoseSnapshot | null, poseMatchScore: number | null) => void;
   onPhotoCaptured?: (imageDataUrl: string) => void;
 };
@@ -64,11 +74,15 @@ type LivePoseProps = {
 export default function LivePose({
   frameSize,
   targetPoseLandmarks,
+  targetPoseWorldLandmarks,
   chosenSkeletonForLlm,
   photoIntervalMs = 5000,
   minMatchScoreForLlm = 80,
   showPoseStatus = true,
   showControls = true,
+  onSkeletonUpdate,
+  onPoseGuidanceUpdate,
+  onRelativeDistanceGuidanceUpdate,
   onPhotoCallback,
   onPhotoCaptured,
 }: LivePoseProps) {
@@ -292,13 +306,17 @@ export default function LivePose({
         callbackIntervalMs={poseCallbackIntervalMs}
         flashSignal={flashSignal}
         targetPoseLandmarks={targetPoseLandmarks}
+        targetPoseWorldLandmarks={targetPoseWorldLandmarks}
         showTargetPoseOverlay={Boolean(targetPoseLandmarks)}
         onPhotoCaptured={onPhotoCaptured}
+        onPoseGuidanceUpdate={onPoseGuidanceUpdate}
+        onRelativeDistanceGuidanceUpdate={onRelativeDistanceGuidanceUpdate}
         onPoseMatchScoreUpdate={(score) => {
           latestPoseMatchScoreRef.current = score;
         }}
         onSkeletonUpdate={(snapshot) => {
           latestSnapshotRef.current = snapshot;
+          onSkeletonUpdate?.(snapshot);
         }}
       />
 

@@ -1,9 +1,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
-import { Point3D, Connection } from "../types";
+import { Point3D } from "../types";
 import {
-  createArrowBetweenPoints,
   createDifferenceArrows,
   MEDIAPIPE_CONNECTIONS,
 } from "../util";
@@ -124,7 +123,6 @@ export default function SkeletonViewer({
     });
     scene.add(new THREE.Points(dotGeometry, dotMaterial));
     const pivot = new THREE.Group();
-    console.log(showPose);
     const poseSkeleton = buildSkeleton(pose, 0x4a9eff, 0);
     const refSkeleton = buildSkeleton(referencePose, 0xff7b4a, 0);
     if (showPose) pivot.add(poseSkeleton);
@@ -218,7 +216,7 @@ export default function SkeletonViewer({
       canvas.removeEventListener("touchmove", onMove);
       canvas.removeEventListener("wheel", onWheel);
     };
-  }, [showPose, showReference, showArrows]);
+  }, [pose, referencePose, showPose, showReference, showArrows]);
   useEffect(() => {
     stateRef.current.autoRotate = autoRotate;
   }, [autoRotate]);

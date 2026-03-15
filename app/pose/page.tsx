@@ -42,7 +42,7 @@ function getLandmarksForApi(landmarks: NormalizedLandmark[][] | null): string {
 
   const reducedLandmarks = firstPose
     .filter((_, idx) => POSE_REDUCTION_KEEP.some(([keepIdx]) => keepIdx === idx))
-    .map((lm, i) => ([
+    .map((lm) => ([
       lm.x.toFixed(5),
       lm.y.toFixed(5),
       lm.z.toFixed(5),
