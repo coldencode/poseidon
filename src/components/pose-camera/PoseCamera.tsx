@@ -187,29 +187,39 @@ const drawPoseLandmarkSet = (
   }
 };
 
-const getCenteredMobileGuideRect = (
+const getFullCanvasRect = (
+  canvasWidth: number,
+  canvasHeight: number
+): ProjectionRect => ({
+  x: 0,
+  y: 0,
+  width: canvasWidth,
+  height: canvasHeight,
+});
+
+const getContainProjectionRect = (
   canvasWidth: number,
   canvasHeight: number,
-  mobileAspectRatio = 9 / 16
+  sourceAspectRatio: number
 ): ProjectionRect => {
-  const canvasAspect = canvasWidth / canvasHeight;
+  const canvasAspectRatio = canvasWidth / canvasHeight;
 
-  if (canvasAspect > mobileAspectRatio) {
-    const guideWidth = canvasHeight * mobileAspectRatio;
+  if (canvasAspectRatio > sourceAspectRatio) {
+    const projectedWidth = canvasHeight * sourceAspectRatio;
     return {
-      x: (canvasWidth - guideWidth) / 2,
+      x: (canvasWidth - projectedWidth) / 2,
       y: 0,
-      width: guideWidth,
+      width: projectedWidth,
       height: canvasHeight,
     };
   }
 
-  const guideHeight = canvasWidth / mobileAspectRatio;
+  const projectedHeight = canvasWidth / sourceAspectRatio;
   return {
     x: 0,
-    y: (canvasHeight - guideHeight) / 2,
+    y: (canvasHeight - projectedHeight) / 2,
     width: canvasWidth,
-    height: guideHeight,
+    height: projectedHeight,
   };
 };
 
@@ -266,7 +276,10 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
   showPoseStatus = false,
   showControls = true,
   targetPoseLandmarks,
+  targetPoseImageUrl,
   showTargetPoseOverlay = false,
+  showUserSkeleton = true,
+  showTargetSkeleton = false,
   frameSize,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -296,6 +309,7 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
     null
   );
   const [poseMatchScore, setPoseMatchScore] = useState<number | null>(null);
+  const [targetOverlayAspectRatio, setTargetOverlayAspectRatio] = useState<number | null>(null);
 
   const safeFrameSize = useMemo(
     () => ({
@@ -454,9 +468,21 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
     const hasPose = landmarks.length > 0;
     setPoseDetected(hasPose);
 
-    if (showTargetPoseOverlay && fittedTargetPoseLandmarks && fittedTargetPoseLandmarks.length > 0) {
-      const mobileGuideRect = getCenteredMobileGuideRect(canvas.width, canvas.height);
-      drawPoseLandmarkSetInRect(fittedTargetPoseLandmarks, canvasCtx, mobileGuideRect, {
+    if (
+      showTargetPoseOverlay &&
+      showTargetSkeleton &&
+      fittedTargetPoseLandmarks &&
+      fittedTargetPoseLandmarks.length > 0
+    ) {
+      const targetOverlayRect =
+        targetOverlayAspectRatio && Number.isFinite(targetOverlayAspectRatio)
+          ? getContainProjectionRect(
+              canvas.width,
+              canvas.height,
+              targetOverlayAspectRatio
+            )
+          : getFullCanvasRect(canvas.width, canvas.height);
+      drawPoseLandmarkSetInRect(fittedTargetPoseLandmarks, canvasCtx, targetOverlayRect, {
         connectorColor: "rgba(56, 189, 248, 0.95)",
         pointColor: "rgba(125, 211, 252, 0.95)",
         lineWidth: 2,
@@ -485,18 +511,20 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
         }
       }
 
-      for (const poseLandmarks of landmarks) {
-        drawPoseLandmarkSet(poseLandmarks, canvasCtx, {
-          videoWidth: video.videoWidth,
-          videoHeight: video.videoHeight,
-          canvasWidth: canvas.width,
-          canvasHeight: canvas.height,
-        }, {
-          connectorColor: "#00FF88",
-          pointColor: "#FF3366",
-          lineWidth: 3,
-          radius: 4,
-        });
+      if (showUserSkeleton) {
+        for (const poseLandmarks of landmarks) {
+          drawPoseLandmarkSet(poseLandmarks, canvasCtx, {
+            videoWidth: video.videoWidth,
+            videoHeight: video.videoHeight,
+            canvasWidth: canvas.width,
+            canvasHeight: canvas.height,
+          }, {
+            connectorColor: "#00FF88",
+            pointColor: "#FF3366",
+            lineWidth: 3,
+            radius: 4,
+          });
+        }
       }
     } else if (poseMatchScore !== null) {
       setPoseMatchScore(null);
@@ -521,7 +549,7 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
     }
 
     scheduleNextFrame();
-  }, [showTargetPoseOverlay, fittedTargetPoseLandmarks, poseMatchScore]);
+  }, [showTargetPoseOverlay, showTargetSkeleton, fittedTargetPoseLandmarks, poseMatchScore, showUserSkeleton, targetOverlayAspectRatio]);
 
   useEffect(() => {
     detectPoseRef.current = detectPose;
@@ -646,7 +674,7 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
           </div>
         )}
 
-        {showTargetPoseOverlay && fittedTargetPoseLandmarks ? (
+        {showTargetPoseOverlay && targetPoseLandmarks ? (
           <div style={styles.poseMatchBadge}>
             Match: {poseMatchScore !== null ? `${poseMatchScore}%` : "--"}
           </div>
@@ -670,6 +698,24 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
           playsInline
           muted
         />
+        {showTargetPoseOverlay && targetPoseImageUrl ? (
+          <Image
+            src={targetPoseImageUrl}
+            alt="Target pose overlay"
+            width={320}
+            height={568}
+            unoptimized
+            onLoad={(event) => {
+              const imageElement = event.currentTarget;
+              if (imageElement.naturalWidth > 0 && imageElement.naturalHeight > 0) {
+                setTargetOverlayAspectRatio(
+                  imageElement.naturalWidth / imageElement.naturalHeight
+                );
+              }
+            }}
+            style={styles.targetPoseImageOverlay}
+          />
+        ) : null}
         <canvas ref={canvasRef} style={styles.canvas} />
 
         {lastCapturedImage ? (

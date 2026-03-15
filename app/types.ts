@@ -14,7 +14,10 @@ export type PoseCameraProps = {
   showPoseStatus?: boolean;
   showControls?: boolean;
   targetPoseLandmarks?: NormalizedLandmark[];
+  targetPoseImageUrl?: string;
   showTargetPoseOverlay?: boolean;
+  showUserSkeleton?: boolean;
+  showTargetSkeleton?: boolean;
   frameSize: {
     width: number;
     height: number;
