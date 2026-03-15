@@ -27,7 +27,7 @@ export type PoseCameraProps = {
   onPoseMatchScoreUpdate?: (score: number | null) => void;
   onPoseGuidanceUpdate?: (guidance: PoseGuidanceSummary | null) => void;
   onRelativeDistanceGuidanceUpdate?: (
-    guidance: RelativeDistanceGuidance | null
+    guidance: RelativeDistanceGuidance | null,
   ) => void;
   callbackIntervalMs?: number;
   showPoseStatus?: boolean;
@@ -72,3 +72,11 @@ export type PoseData = {
 
 // for local storage
 export const PHOTO_STORAGE_KEY = "poseidon.captures";
+
+export type CapturedItem = {
+  id: string;
+  photo: string;
+  snapshot?: PoseSnapshot;
+  targetPoseId?: string | null;
+  targetPoseImage?: string | null;
+};
