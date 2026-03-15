@@ -329,7 +329,7 @@ export default function LivePose({
       ) : null}
 
       {/* Debug status badge */}
-      <div className="absolute left-2 top-2 z-50 flex max-w-[calc(100%-1rem)] flex-col gap-0.5 rounded-lg border border-white/20 bg-black/70 px-2.5 py-1.5 font-mono text-[11px] leading-tight text-white shadow-md backdrop-blur-sm">
+      <div className="absolute bottom-2 left-2 z-50 flex max-w-[calc(100%-1rem)] flex-col gap-0.5 rounded-lg border border-white/20 bg-black/70 px-2.5 py-1.5 font-mono text-[11px] leading-tight text-white shadow-md backdrop-blur-sm">
         <div className="flex items-center gap-1.5">
           <span
             className={`inline-block h-2 w-2 shrink-0 rounded-full ${
