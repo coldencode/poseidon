@@ -14,16 +14,69 @@ export interface SceneState {
   lastY: number;
   autoRotate: boolean;
 }
-function buildSkeleton(pts: Point3D[], color: number, offsetX: number) {
+function buildSkeleton(
+  pts: Point3D[],
+  color: number,
+  offsetX: number,
+  showSkeleton: boolean,
+  showVolumes: boolean,
+  modelRole: "user" | "reference",
+  prioritizeReferenceOnOverlap: boolean,
+) {
   const group = new THREE.Group();
 
   if (!pts || pts.length === 0) return group;
-  const mat = new THREE.MeshPhongMaterial({ color });
+  const skeletonMat = new THREE.MeshPhongMaterial({ color });
   const boneMat = new THREE.MeshPhongMaterial({
     color,
     transparent: true,
-    opacity: 0.75,
+    opacity: 0.5,
   });
+  const volumeMat = new THREE.MeshPhongMaterial({
+    color,
+    transparent: false,
+    opacity: 1,
+    shininess: 55,
+  });
+  const isReferenceModel = modelRole === "reference";
+  const userVolumeMat = volumeMat.clone();
+  userVolumeMat.color.set(0xcbd5e1);
+  userVolumeMat.transparent = true;
+  userVolumeMat.opacity = 0.35;
+  userVolumeMat.stencilWrite = true;
+  userVolumeMat.stencilRef = 1;
+  userVolumeMat.stencilFunc = THREE.AlwaysStencilFunc;
+  userVolumeMat.stencilFail = THREE.KeepStencilOp;
+  userVolumeMat.stencilZFail = THREE.KeepStencilOp;
+  userVolumeMat.stencilZPass = THREE.ReplaceStencilOp;
+
+  const referenceBaseVolumeMat = volumeMat.clone();
+  const referenceOverlapVolumeMat = volumeMat.clone();
+  referenceOverlapVolumeMat.transparent = false;
+  referenceOverlapVolumeMat.opacity = 1;
+  referenceOverlapVolumeMat.depthTest = false;
+  referenceOverlapVolumeMat.depthWrite = false;
+  referenceOverlapVolumeMat.stencilWrite = true;
+  referenceOverlapVolumeMat.stencilRef = 1;
+  referenceOverlapVolumeMat.stencilFunc = THREE.EqualStencilFunc;
+  referenceOverlapVolumeMat.stencilFail = THREE.KeepStencilOp;
+  referenceOverlapVolumeMat.stencilZFail = THREE.KeepStencilOp;
+  referenceOverlapVolumeMat.stencilZPass = THREE.KeepStencilOp;
+
+  const primaryVolumeMat = isReferenceModel
+    ? referenceBaseVolumeMat
+    : userVolumeMat;
+
+  const addVolumeMesh = (mesh: THREE.Mesh) => {
+    group.add(mesh);
+
+    if (isReferenceModel && prioritizeReferenceOnOverlap) {
+      const overlapMesh = mesh.clone();
+      overlapMesh.material = referenceOverlapVolumeMat;
+      overlapMesh.renderOrder = 3;
+      group.add(overlapMesh);
+    }
+  };
   if (!pts || pts.length === 0 || !pts[0]) {
     return group;
   }
@@ -36,46 +89,174 @@ function buildSkeleton(pts: Point3D[], color: number, offsetX: number) {
   )
     return group;
 
-  const headPos = new THREE.Vector3(pts[0].x + offsetX, -pts[0].y, -pts[0].z);
-  const headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 16), mat);
-  headMesh.position.copy(headPos);
-  group.add(headMesh);
-  MEDIAPIPE_CONNECTIONS.forEach(({ start, end, radius }) => {
-    if (start >= pts.length || end >= pts.length) return;
-    const pA = new THREE.Vector3(
-      pts[start].x + offsetX,
-      -pts[start].y,
-      -pts[start].z,
+  if (showVolumes) {
+    const headPos = new THREE.Vector3(pts[0].x + offsetX, -pts[0].y, -pts[0].z);
+    const headMesh = new THREE.Mesh(
+      new THREE.SphereGeometry(0.09, 16, 16),
+      primaryVolumeMat,
     );
-    const pB = new THREE.Vector3(
-      pts[end].x + offsetX,
-      -pts[end].y,
-      -pts[end].z,
+    headMesh.position.copy(headPos);
+    addVolumeMesh(headMesh);
+  }
+
+  const getPoint = (index: number): THREE.Vector3 | null => {
+    const point = pts[index];
+    if (!point) return null;
+    if (
+      typeof point.x !== "number" ||
+      typeof point.y !== "number" ||
+      typeof point.z !== "number"
+    ) {
+      return null;
+    }
+
+    return new THREE.Vector3(point.x + offsetX, -point.y, -point.z);
+  };
+
+  const addLimbVolume = (
+    startIndex: number,
+    endIndex: number,
+    startRadius: number,
+    endRadius: number,
+  ) => {
+    const startPoint = getPoint(startIndex);
+    const endPoint = getPoint(endIndex);
+
+    if (!startPoint || !endPoint) {
+      return;
+    }
+
+    const direction = new THREE.Vector3().subVectors(endPoint, startPoint);
+    const length = direction.length();
+    if (length <= 1e-6) {
+      return;
+    }
+
+    const midpoint = new THREE.Vector3()
+      .addVectors(startPoint, endPoint)
+      .multiplyScalar(0.5);
+
+    const limb = new THREE.Mesh(
+      new THREE.CylinderGeometry(endRadius, startRadius, length, 16),
+      primaryVolumeMat,
     );
-    const dir = new THREE.Vector3().subVectors(pB, pA);
-    const len = dir.length();
-    const mid = new THREE.Vector3().addVectors(pA, pB).multiplyScalar(0.5);
-    // Bone cylinder
-    const bone = new THREE.Mesh(
-      new THREE.CylinderGeometry(radius, radius, len, 8),
-      boneMat,
-    );
-    bone.position.copy(mid);
-    bone.quaternion.setFromUnitVectors(
+    limb.position.copy(midpoint);
+    limb.quaternion.setFromUnitVectors(
       new THREE.Vector3(0, 1, 0),
-      dir.clone().normalize(),
+      direction.clone().normalize(),
     );
-    group.add(bone);
-    // Smooth caps at each joint
-    [pA, pB].forEach((p) => {
-      const cap = new THREE.Mesh(
-        new THREE.SphereGeometry(radius, 5, 5),
+
+    addVolumeMesh(limb);
+  };
+
+  const addTorsoVolume = () => {
+    const leftShoulder = getPoint(11);
+    const rightShoulder = getPoint(12);
+    const leftHip = getPoint(23);
+    const rightHip = getPoint(24);
+
+    if (!leftShoulder || !rightShoulder || !leftHip || !rightHip) {
+      return;
+    }
+
+    const shoulderMid = new THREE.Vector3()
+      .addVectors(leftShoulder, rightShoulder)
+      .multiplyScalar(0.5);
+    const hipMid = new THREE.Vector3()
+      .addVectors(leftHip, rightHip)
+      .multiplyScalar(0.5);
+
+    const center = new THREE.Vector3()
+      .addVectors(shoulderMid, hipMid)
+      .multiplyScalar(0.5);
+
+    const rightAxis = new THREE.Vector3().subVectors(rightShoulder, leftShoulder);
+    const upAxis = new THREE.Vector3().subVectors(shoulderMid, hipMid);
+
+    if (rightAxis.lengthSq() <= 1e-6 || upAxis.lengthSq() <= 1e-6) {
+      return;
+    }
+
+    rightAxis.normalize();
+    let forwardAxis = new THREE.Vector3().crossVectors(rightAxis, upAxis);
+
+    if (forwardAxis.lengthSq() <= 1e-6) {
+      forwardAxis = new THREE.Vector3(0, 0, 1);
+    } else {
+      forwardAxis.normalize();
+    }
+
+    const fixedUpAxis = new THREE.Vector3()
+      .crossVectors(forwardAxis, rightAxis)
+      .normalize();
+
+    const torsoWidth = Math.max(0.16, leftShoulder.distanceTo(rightShoulder) * 1.2);
+    const torsoHeight = Math.max(0.22, shoulderMid.distanceTo(hipMid) * 1.2);
+    const torsoDepth = Math.max(0.14, torsoWidth * 0.55);
+
+    const torsoRadius = Math.max(0.075, Math.min(torsoWidth, torsoHeight) * 0.23);
+    const torsoCoreHeight = Math.max(0.02, torsoHeight - torsoRadius * 2);
+    const torso = new THREE.Mesh(
+      new THREE.CapsuleGeometry(torsoRadius, torsoCoreHeight, 8, 18),
+      primaryVolumeMat,
+    );
+    torso.position.copy(center);
+
+    const torsoDiameter = torsoRadius * 2;
+    const torsoScaleX = Math.max(0.9, torsoWidth / torsoDiameter);
+    const torsoScaleZ = Math.max(0.6, torsoDepth / torsoDiameter);
+    torso.scale.set(torsoScaleX, 1, torsoScaleZ);
+
+    const orientation = new THREE.Matrix4().makeBasis(
+      rightAxis,
+      fixedUpAxis,
+      forwardAxis,
+    );
+    torso.quaternion.setFromRotationMatrix(orientation);
+    addVolumeMesh(torso);
+  };
+
+  if (showSkeleton) {
+    MEDIAPIPE_CONNECTIONS.forEach(({ start, end, radius }) => {
+      if (start >= pts.length || end >= pts.length) return;
+      const pA = new THREE.Vector3(
+        pts[start].x + offsetX,
+        -pts[start].y,
+        -pts[start].z,
+      );
+      const pB = new THREE.Vector3(
+        pts[end].x + offsetX,
+        -pts[end].y,
+        -pts[end].z,
+      );
+      const dir = new THREE.Vector3().subVectors(pB, pA);
+      const len = dir.length();
+      const mid = new THREE.Vector3().addVectors(pA, pB).multiplyScalar(0.5);
+      const bone = new THREE.Mesh(
+        new THREE.CylinderGeometry(radius, radius, len, 8),
         boneMat,
       );
-      cap.position.copy(p);
-      group.add(cap);
+      bone.position.copy(mid);
+      bone.quaternion.setFromUnitVectors(
+        new THREE.Vector3(0, 1, 0),
+        dir.clone().normalize(),
+      );
+      group.add(bone);
     });
-  });
+  }
+
+  if (showVolumes) {
+    addTorsoVolume();
+    addLimbVolume(11, 13, 0.07, 0.055);
+    addLimbVolume(13, 15, 0.055, 0.042);
+    addLimbVolume(12, 14, 0.07, 0.055);
+    addLimbVolume(14, 16, 0.055, 0.042);
+    addLimbVolume(23, 25, 0.082, 0.065);
+    addLimbVolume(25, 27, 0.065, 0.05);
+    addLimbVolume(24, 26, 0.082, 0.065);
+    addLimbVolume(26, 28, 0.065, 0.05);
+  }
+
   return group;
 }
 
@@ -92,6 +273,7 @@ export default function SkeletonViewer({
   const [showPose, setShowPose] = useState<boolean>(true);
   const [showReference, setShowReference] = useState<boolean>(true);
   const [showArrows, setShowArrows] = useState<boolean>(false);
+  const [showSkeleton, setShowSkeleton] = useState<boolean>(true);
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -99,6 +281,7 @@ export default function SkeletonViewer({
       canvas,
       antialias: true,
       alpha: true,
+      stencil: true,
     });
     renderer.setPixelRatio(window.devicePixelRatio);
     const container = canvas.parentElement?.parentElement;
@@ -142,9 +325,26 @@ export default function SkeletonViewer({
     const pivot = new THREE.Group();
 
     if (referencePose && pose) {
-      const poseSkeleton = buildSkeleton(pose, 0x2563eb, 0);
+      const prioritizeReferenceOnOverlap = showReference && showPose;
+      const poseSkeleton = buildSkeleton(
+        pose,
+        0x2563eb,
+        0,
+        showSkeleton,
+        true,
+        "user",
+        prioritizeReferenceOnOverlap,
+      );
 
-      const refSkeleton = buildSkeleton(referencePose, 0xea580c, 0);
+      const refSkeleton = buildSkeleton(
+        referencePose,
+        0xea580c,
+        0,
+        showSkeleton,
+        true,
+        "reference",
+        prioritizeReferenceOnOverlap,
+      );
       if (showReference) pivot.add(refSkeleton);
       if (!showReference) pivot.remove(refSkeleton);
       const arrows = createDifferenceArrows(pose, referencePose, 0x475569);
@@ -234,7 +434,7 @@ export default function SkeletonViewer({
       canvas.removeEventListener("touchmove", onMove);
       canvas.removeEventListener("wheel", onWheel);
     };
-  }, [showPose, showReference, showArrows]);
+  }, [showPose, showReference, showArrows, showSkeleton]);
   useEffect(() => {
     const s = stateRef.current;
     if (!s.pivot) return;
@@ -244,15 +444,32 @@ export default function SkeletonViewer({
     toRemove.forEach((child) => s.pivot!.remove(child));
 
     if (referencePose && pose) {
-      const poseSkeleton = buildSkeleton(pose, 0x2563eb, 0);
-      const refSkeleton = buildSkeleton(referencePose, 0xea580c, 0);
+      const prioritizeReferenceOnOverlap = showReference && showPose;
+      const poseSkeleton = buildSkeleton(
+        pose,
+        0x2563eb,
+        0,
+        showSkeleton,
+        true,
+        "user",
+        prioritizeReferenceOnOverlap,
+      );
+      const refSkeleton = buildSkeleton(
+        referencePose,
+        0xea580c,
+        0,
+        showSkeleton,
+        true,
+        "reference",
+        prioritizeReferenceOnOverlap,
+      );
       const arrows = createDifferenceArrows(pose, referencePose, 0x475569);
 
       if (showPose) s.pivot.add(poseSkeleton);
       if (showReference) s.pivot.add(refSkeleton);
       if (showArrows) s.pivot.add(arrows);
     }
-  }, [pose, referencePose]);
+  }, [pose, referencePose, showPose, showReference, showArrows, showSkeleton]);
   useEffect(() => {
     stateRef.current.autoRotate = autoRotate;
   }, [autoRotate]);
@@ -277,6 +494,12 @@ export default function SkeletonViewer({
               "Reference Pose",
               showReference,
               () => setShowReference((p) => !p),
+            ],
+            [
+              "#64748b",
+              "Skeleton",
+              showSkeleton,
+              () => setShowSkeleton((p) => !p),
             ],
             ["#475569", "Arrows", showArrows, () => setShowArrows((p) => !p)],
           ].map(([color, label, visible, toggle]) => (
