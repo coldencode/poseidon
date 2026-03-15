@@ -110,6 +110,9 @@ function CameraPageContent() {
     useState<RelativeDistanceGuidance | null>(null);
   const [chosenSkeletonForLlm, setChosenSkeletonForLlm] = useState<string>("");
 
+
+  const router = useRouter();
+
   const handlePhotoCaptured = useCallback((imageDataUrl: string) => {
     setCapturedItems((previousItems) => {
       const newItem: CapturedItem = {
@@ -135,6 +138,14 @@ function CameraPageContent() {
   const handleSelectCapture = useCallback((index: number) => {
     setSelectedCaptureIndex(index);
     setShowResultConfirm(true);
+  };
+
+  const handleDeleteCapture = useCallback((id: string) => {
+    setCapturedItems((previousItems) => {
+      const updatedItems = previousItems.filter((item) => item.id !== id);
+      localStorage.setItem(PHOTO_STORAGE_KEY, JSON.stringify(updatedItems));
+      return updatedItems;
+    });
   }, []);
 
   const router = useRouter();
@@ -329,7 +340,7 @@ function CameraPageContent() {
                   const file = e.target.files?.[0];
                   if (!file) return;
                   const reader = new FileReader();
-                  reader.onload = () => addPhoto(reader.result as string);
+                  reader.onload = () => handlePhotoCaptured(reader.result as string);
                   reader.readAsDataURL(file);
                 }}
               />

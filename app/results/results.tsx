@@ -176,10 +176,10 @@ export default function Results({
               className="flex-1 min-h-0 rounded-lg border border-slate-200
                           bg-white p-4 relative overflow-hidden shadow-sm"
             >
-              {currentUserImage && currentUserImage.length > 0 ? (
+              {photo ? (
                 <div className="relative w-full h-full">
                   <Image
-                    src={currentUserImage}
+                    src={photo}
                     alt="Your Pose"
                     fill
                     unoptimized
@@ -198,16 +198,16 @@ export default function Results({
           {/* Right col — Reference Photo (moved before skeleton on mobile) */}
           <div className="flex flex-col gap-2 h-[500px] md:h-full col-span-1 md:order-last">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide text-center">
-              {targetPoseLabel ?? "Reference"}
+              Reference Pose
             </p>
             <div
               className="flex-1 min-h-0 rounded-lg border border-slate-200
                           bg-white p-4 relative overflow-hidden shadow-sm"
             >
-              {targetPoseImage ? (
+              {referencePhoto ? (
                 <div className="relative w-full h-full">
                   <Image
-                    src={targetPoseImage}
+                    src={referencePhoto}
                     alt="Reference Pose"
                     fill
                     unoptimized
