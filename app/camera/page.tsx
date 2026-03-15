@@ -16,44 +16,56 @@ type PoseLibraryJson = {
   worldLandmarks?: NormalizedLandmark[][];
 };
 
+const parseStoredCaptures = (rawValue: string | null): string[] => {
+  if (!rawValue) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(rawValue);
+    if (Array.isArray(parsed)) {
+      return parsed.filter((item): item is string => typeof item === "string");
+    }
+  } catch {
+    return [];
+  }
+
+  return [];
+};
+
+const buildTargetPoseImagePath = (
+  selectedPoseId: string,
+  poseFileName?: string
+) => (poseFileName ? `/pose-library/${poseFileName}` : `/pose-library/${selectedPoseId}.png`);
+
+const appendCacheToken = (path: string, token: number) => {
+  const separator = path.includes("?") ? "&" : "?";
+  return `${path}${separator}v=${token}`;
+};
+
 function CameraPageContent() {
   const searchParams = useSearchParams();
   const selectedPoseId = searchParams.get("pose");
 
-  const [isMobileViewport, setIsMobileViewport] = useState(() => {
-    if (typeof window === "undefined") {
-      return true;
-    }
-    return window.matchMedia("(max-width: 768px)").matches;
-  });
+  const [isMobileViewport, setIsMobileViewport] = useState(true);
 
-  const [capturedPhotos, setCapturedPhotos] = useState<string[]>(() => {
-    if (typeof window === "undefined") {
-      return [];
-    }
-
-    const savedPhotos = localStorage.getItem(PHOTO_STORAGE_KEY);
-    if (!savedPhotos) {
-      return [];
-    }
-
-    try {
-      const parsed = JSON.parse(savedPhotos);
-      if (Array.isArray(parsed)) {
-        return parsed.filter((item) => typeof item === "string");
-      }
-    } catch {
-      localStorage.removeItem(PHOTO_STORAGE_KEY);
-    }
-
-    return [];
-  });
+  const [capturedPhotos, setCapturedPhotos] = useState<string[]>([]);
   const [targetPoseLandmarks, setTargetPoseLandmarks] = useState<
     NormalizedLandmark[] | undefined
   >(undefined);
   const [targetPoseImage, setTargetPoseImage] = useState<string | null>(null);
   const [targetPoseLabel, setTargetPoseLabel] = useState<string | null>(null);
   const [poseMatchScore, setPoseMatchScore] = useState<number | null>(null);
+  const [showUserSkeleton, setShowUserSkeleton] = useState(true);
+  const [showTargetSkeleton, setShowTargetSkeleton] = useState(false);
+  const [targetImageRefreshToken, setTargetImageRefreshToken] = useState(0);
+
+  const targetPoseImageUrl = useMemo(() => {
+    if (!targetPoseImage) {
+      return null;
+    }
+    return appendCacheToken(targetPoseImage, targetImageRefreshToken);
+  }, [targetPoseImage, targetImageRefreshToken]);
 
   const handlePhotoCaptured = useCallback((imageDataUrl: string) => {
     setCapturedPhotos((previousPhotos) => {
@@ -64,6 +76,16 @@ function CameraPageContent() {
       localStorage.setItem(PHOTO_STORAGE_KEY, JSON.stringify(updatedPhotos));
       return updatedPhotos;
     });
+  }, []);
+
+  useEffect(() => {
+    const savedPhotos = localStorage.getItem(PHOTO_STORAGE_KEY);
+    const parsedPhotos = parseStoredCaptures(savedPhotos);
+    if (parsedPhotos.length > 0) {
+      setCapturedPhotos(parsedPhotos);
+    } else if (savedPhotos) {
+      localStorage.removeItem(PHOTO_STORAGE_KEY);
+    }
   }, []);
 
   useEffect(() => {
@@ -107,9 +129,12 @@ function CameraPageContent() {
         }
 
         setTargetPoseLandmarks(firstLandmarks);
-        setTargetPoseImage(
-          parsed.pose ? `/pose-library/${parsed.pose}` : `/pose-library/${selectedPoseId}.png`
+        const targetImagePath = buildTargetPoseImagePath(
+          selectedPoseId,
+          parsed.pose
         );
+        setTargetPoseImage(targetImagePath);
+        setTargetImageRefreshToken((previousToken) => previousToken + 1);
         setTargetPoseLabel(selectedPoseId.replace(/[-_]+/g, " "));
       } catch {
         if (!isActive) {
@@ -154,23 +179,54 @@ function CameraPageContent() {
           </Link>
         </div>
 
-        {targetPoseImage ? (
+        {targetPoseImageUrl ? (
           <div className="mb-3 flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-2">
             <Image
-              src={targetPoseImage}
+              src={targetPoseImageUrl}
               alt="Selected target pose"
               width={40}
               height={52}
+              unoptimized
               className="h-13 w-10 rounded-md border border-slate-200 object-cover"
             />
             <p className="text-xs text-slate-600">
               Match your live pose to the overlaid skeleton guide.
             </p>
+            <button
+              type="button"
+              onClick={() =>
+                setTargetImageRefreshToken((previousToken) => previousToken + 1)
+              }
+              className="rounded-md border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Refresh target image
+            </button>
             <span className="ml-auto rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
               Score: {poseMatchScore !== null ? `${poseMatchScore}%` : "--"}
             </span>
           </div>
         ) : null}
+
+        <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-2">
+          <label className="inline-flex items-center gap-2 text-xs text-slate-700">
+            <input
+              type="checkbox"
+              checked={showUserSkeleton}
+              onChange={(event) => setShowUserSkeleton(event.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-sky-600"
+            />
+            User skeleton
+          </label>
+          <label className="inline-flex items-center gap-2 text-xs text-slate-700">
+            <input
+              type="checkbox"
+              checked={showTargetSkeleton}
+              onChange={(event) => setShowTargetSkeleton(event.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-sky-600"
+            />
+            Target skeleton
+          </label>
+        </div>
 
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 p-2">
           <PoseCamera
@@ -179,7 +235,10 @@ function CameraPageContent() {
             showControls
             onPhotoCaptured={handlePhotoCaptured}
             targetPoseLandmarks={targetPoseLandmarks}
+            targetPoseImageUrl={targetPoseImageUrl ?? undefined}
             showTargetPoseOverlay
+            showUserSkeleton={showUserSkeleton}
+            showTargetSkeleton={showTargetSkeleton}
             onPoseMatchScoreUpdate={setPoseMatchScore}
           />
         </div>
