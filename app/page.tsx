@@ -13,21 +13,23 @@ export default function Home() {
 
       {/* Centered rounded rectangle with drop shadow - matches poses/camera page background */}
       <div className="relative h-[812px] w-full overflow-hidden rounded-3xl bg-gradient-to-b from-violet-50 via-white to-sky-50 shadow-2xl shadow-black/30">
-        {/* Grid overlay - background */}
-        <div
-          className="absolute inset-0 z-0 rounded-3xl opacity-40"
-          style={{
-            backgroundImage: `
-              linear-gradient(rgba(0,0,0,0.06) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(0,0,0,0.06) 1px, transparent 1px)
-            `,
-            backgroundSize: "24px 24px",
-          }}
-        />
         {/* Spline scene - full size */}
         <div className="absolute inset-0 z-0 overflow-hidden rounded-3xl">
           <Spline scene="https://prod.spline.design/bDJOcNEVMiAlLDy1/scene.splinecode" />
         </div>
+        {/* Dark overlay - above Spline, behind grid */}
+        <div className="pointer-events-none absolute inset-0 z-[1] rounded-3xl bg-black/25" />
+        {/* Grid overlay - above dark overlay */}
+        <div
+          className="pointer-events-none absolute inset-0 z-[2] rounded-3xl opacity-40"
+          style={{
+            backgroundImage: `
+              linear-gradient(rgba(0,0,0,0.14) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(0,0,0,0.14) 1px, transparent 1px)
+            `,
+            backgroundSize: "48px 48px",
+          }}
+        />
 
         {/* Hero content - clean, readable (Granola-style) */}
         <div className="absolute left-1/2 top-1/2 z-10 w-[92%] max-w-xl -translate-x-1/2 -translate-y-1/2 px-2 sm:w-full">
@@ -39,7 +41,7 @@ export default function Home() {
 
             {/* Title - dominant, clear hierarchy */}
             <h1
-              className="mt-6 text-4xl font-extrabold leading-tight sm:mt-8 sm:text-5xl md:text-6xl lg:text-7xl"
+              className="mt-6 text-5xl font-extrabold leading-tight sm:mt-8 sm:text-5xl md:text-6xl lg:text-7xl"
               style={{
                 fontFamily: "var(--font-nunito)",
                 background: "linear-gradient(135deg, #0ea5e9, #2563eb)",
@@ -70,7 +72,7 @@ export default function Home() {
         </Link>
 
         {/* Footer text */}
-        <div className="absolute bottom-4 left-1/2 z-10 -translate-x-1/2 text-center text-xs font-semibold text-[#93B5F4]">
+        <div className="absolute bottom-4 left-1/2 z-10 -translate-x-1/2 text-center text-xs font-semibold text-black">
           UNIHACK 2026
         </div>
       </div>
