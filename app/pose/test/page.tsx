@@ -6,6 +6,8 @@ import PoseSkeletonCanvas from "@/src/components/pose-skeleton/PoseSkeletonCanva
 
 const POSE_IMAGES = [
   "/pose-library/pose1.png",
+  "/pose-library/pose2.png",
+ 
   "/pose-library/pose9.png",
 ];
 

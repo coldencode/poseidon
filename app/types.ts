@@ -6,14 +6,38 @@ export type PoseSnapshot = {
   hasPose: boolean;
 };
 
+export type RelativeDistanceGuidance = {
+  scaleRatio: number;
+  category: "Too Close" | "Good Distance" | "Too Far";
+};
+
+export type PoseGuidanceAdjustment = {
+  limb: string;
+  similarity: number;
+  message: string;
+};
+
+export type PoseGuidanceSummary = {
+  confidence: number;
+  coveredBones: number;
+  totalBones: number;
+  primaryInstruction: string;
+  topAdjustments: PoseGuidanceAdjustment[];
+};
+
 export type PoseCameraProps = {
   onSkeletonUpdate?: (snapshot: PoseSnapshot) => void;
   onPhotoCaptured?: (imageDataUrl: string) => void;
   onPoseMatchScoreUpdate?: (score: number | null) => void;
+  onPoseGuidanceUpdate?: (guidance: PoseGuidanceSummary | null) => void;
+  onRelativeDistanceGuidanceUpdate?: (
+    guidance: RelativeDistanceGuidance | null
+  ) => void;
   callbackIntervalMs?: number;
   showPoseStatus?: boolean;
   showControls?: boolean;
   targetPoseLandmarks?: NormalizedLandmark[];
+  targetPoseWorldLandmarks?: NormalizedLandmark[];
   showTargetPoseOverlay?: boolean;
   frameSize: {
     width: number;

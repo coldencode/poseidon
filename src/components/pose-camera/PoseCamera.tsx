@@ -17,25 +17,25 @@ import {
   FilesetResolver,
   type NormalizedLandmark,
 } from "@mediapipe/tasks-vision";
-import type { PoseCameraProps } from "@/app/types";
+import type {
+  PoseCameraProps,
+  RelativeDistanceGuidance,
+} from "@/app/types";
 import { styles } from "./pose-camera.styles";
+import {
+  type BoneEvaluation,
+  computePoseGuidance,
+  computePoseMatchScore,
+  computeRelativeDistanceGuidance,
+  isLikelyNormalizedLandmarks,
+} from "./pose-calculations";
 
 // MediaPipe pose landmark connections for drawing the skeleton
 const POSE_CONNECTIONS = PoseLandmarker.POSE_CONNECTIONS;
 const MEDIAPIPE_WASM_BASE_URL =
   "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm";
 const POSE_MODEL_URL =
-  "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task";
-
-const SCORE_LANDMARK_INDICES = [
-  11, 12,
-  13, 14,
-  15, 16,
-  23, 24,
-  25, 26,
-  27, 28,
-  31, 32,
-] as const;
+  "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task";
 
 type PoseProjection = {
   videoWidth: number;
@@ -62,76 +62,6 @@ const fitPoseLandmarksToFrame = (
   landmarks: NormalizedLandmark[]
 ): NormalizedLandmark[] => {
   return landmarks;
-};
-
-const isLikelyNormalizedLandmarks = (landmarks: NormalizedLandmark[]) =>
-  landmarks.every((landmark) => landmark.x >= 0 && landmark.x <= 1 && landmark.y >= 0 && landmark.y <= 1);
-
-const normalizePoseForComparison = (landmarks: NormalizedLandmark[]) => {
-  const selectedPoints = SCORE_LANDMARK_INDICES
-    .map((index) => landmarks[index])
-    .filter((point): point is NormalizedLandmark => Boolean(point));
-
-  if (selectedPoints.length < 6) {
-    return null;
-  }
-
-  const centroid = selectedPoints.reduce(
-    (accumulator, point) => ({
-      x: accumulator.x + point.x,
-      y: accumulator.y + point.y,
-    }),
-    { x: 0, y: 0 }
-  );
-
-  const centerX = centroid.x / selectedPoints.length;
-  const centerY = centroid.y / selectedPoints.length;
-
-  const centered = selectedPoints.map((point) => ({
-    x: point.x - centerX,
-    y: point.y - centerY,
-  }));
-
-  const rms = Math.sqrt(
-    centered.reduce((sum, point) => sum + point.x ** 2 + point.y ** 2, 0) /
-      centered.length
-  );
-
-  if (!Number.isFinite(rms) || rms < 1e-6) {
-    return null;
-  }
-
-  return centered.map((point) => ({
-    x: point.x / rms,
-    y: point.y / rms,
-  }));
-};
-
-const computePoseMatchScore = (
-  userLandmarks: NormalizedLandmark[],
-  referenceLandmarks: NormalizedLandmark[]
-) => {
-  const normalizedUser = normalizePoseForComparison(userLandmarks);
-  const normalizedReference = normalizePoseForComparison(referenceLandmarks);
-
-  if (!normalizedUser || !normalizedReference) {
-    return null;
-  }
-
-  const comparedLength = Math.min(normalizedUser.length, normalizedReference.length);
-  if (comparedLength === 0) {
-    return null;
-  }
-
-  const averageDistance =
-    normalizedUser.slice(0, comparedLength).reduce((sum, userPoint, index) => {
-      const referencePoint = normalizedReference[index];
-      const deltaX = userPoint.x - referencePoint.x;
-      const deltaY = userPoint.y - referencePoint.y;
-      return sum + Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-    }, 0) / comparedLength;
-
-  return Math.round(Math.max(0, Math.min(100, 100 - averageDistance * 42)));
 };
 
 const drawPoseLandmarkSet = (
@@ -220,7 +150,7 @@ const drawPoseLandmarkSetInRect = (
   style: DrawStyle
 ) => {
   const projectPoint = (landmark: NormalizedLandmark) => ({
-    x: rect.x + landmark.x * rect.width,
+    x: rect.x + (1 - landmark.x) * rect.width,
     y: rect.y + landmark.y * rect.height,
   });
 
@@ -257,15 +187,55 @@ const drawPoseLandmarkSetInRect = (
   }
 };
 
+const drawGuidanceBoneInRect = (
+  canvasCtx: CanvasRenderingContext2D,
+  rect: ProjectionRect,
+  targetLandmarks: NormalizedLandmark[],
+  evaluation: BoneEvaluation
+) => {
+  const targetStart = targetLandmarks[evaluation.startIndex];
+  const targetEnd = targetLandmarks[evaluation.endIndex];
+
+  if (!targetStart || !targetEnd) {
+    return;
+  }
+
+  const projectPoint = (landmark: NormalizedLandmark) => ({
+    x: rect.x + (1 - landmark.x) * rect.width,
+    y: rect.y + landmark.y * rect.height,
+  });
+
+  const targetStartPoint = projectPoint(targetStart);
+  const targetEndPoint = projectPoint(targetEnd);
+
+  canvasCtx.save();
+  canvasCtx.strokeStyle = "rgba(251, 146, 60, 0.95)";
+  canvasCtx.lineWidth = 4;
+  canvasCtx.beginPath();
+  canvasCtx.moveTo(targetStartPoint.x, targetStartPoint.y);
+  canvasCtx.lineTo(targetEndPoint.x, targetEndPoint.y);
+  canvasCtx.stroke();
+
+  canvasCtx.fillStyle = "rgba(251, 146, 60, 0.95)";
+  canvasCtx.beginPath();
+  canvasCtx.arc(targetEndPoint.x, targetEndPoint.y, 5, 0, Math.PI * 2);
+  canvasCtx.fill();
+
+  canvasCtx.restore();
+};
+
 
 const PoseCamera: React.FC<PoseCameraProps> = ({
   onSkeletonUpdate,
   onPhotoCaptured,
   onPoseMatchScoreUpdate,
+  onPoseGuidanceUpdate,
+  onRelativeDistanceGuidanceUpdate,
   callbackIntervalMs = 5000,
   showPoseStatus = false,
   showControls = true,
   targetPoseLandmarks,
+  targetPoseWorldLandmarks,
   showTargetPoseOverlay = false,
   frameSize,
 }) => {
@@ -279,9 +249,18 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
   const poseMatchCallbackRef = useRef<PoseCameraProps["onPoseMatchScoreUpdate"]>(
     onPoseMatchScoreUpdate
   );
+  const poseGuidanceCallbackRef =
+    useRef<PoseCameraProps["onPoseGuidanceUpdate"]>(onPoseGuidanceUpdate);
+  const relativeDistanceCallbackRef =
+    useRef<PoseCameraProps["onRelativeDistanceGuidanceUpdate"]>(
+      onRelativeDistanceGuidanceUpdate
+    );
   const callbackIntervalRef = useRef<number>(callbackIntervalMs);
   const lastCallbackTimeRef = useRef<number>(0);
   const lastScoreUpdateTimeRef = useRef<number>(0);
+  const smoothedScaleRatioRef = useRef<number | null>(null);
+  const lastRelativeDistanceGuidanceRef =
+    useRef<RelativeDistanceGuidance | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const detectPoseRef = useRef<() => void>(() => undefined);
 
@@ -344,8 +323,30 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
   }, [onPoseMatchScoreUpdate]);
 
   useEffect(() => {
+    poseGuidanceCallbackRef.current = onPoseGuidanceUpdate;
+  }, [onPoseGuidanceUpdate]);
+
+  useEffect(() => {
+    relativeDistanceCallbackRef.current = onRelativeDistanceGuidanceUpdate;
+  }, [onRelativeDistanceGuidanceUpdate]);
+
+  useEffect(() => {
     callbackIntervalRef.current = callbackIntervalMs;
   }, [callbackIntervalMs]);
+
+  useEffect(() => {
+    smoothedScaleRatioRef.current = null;
+    lastRelativeDistanceGuidanceRef.current = null;
+    const callback = relativeDistanceCallbackRef.current;
+    if (callback) {
+      callback(null);
+    }
+
+    const guidanceCallback = poseGuidanceCallbackRef.current;
+    if (guidanceCallback) {
+      guidanceCallback(null);
+    }
+  }, [fittedTargetPoseLandmarks]);
 
   // Initialize MediaPipe Pose Landmarker
   const initPoseLandmarker = useCallback(async () => {
@@ -449,7 +450,13 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
     const timestamp = performance.now();
     const result = poseLandmarker.detectForVideo(video, timestamp);
     const landmarks = result.landmarks ?? [];
-    const worldLandmarks = result.worldLandmarks ?? [];
+    const userFrameLandmarks = landmarks[0];
+    const hasNormalizedTarget =
+      fittedTargetPoseLandmarks && isLikelyNormalizedLandmarks(fittedTargetPoseLandmarks);
+    const normalizedGuidance =
+      hasNormalizedTarget && userFrameLandmarks
+        ? computePoseGuidance(userFrameLandmarks, fittedTargetPoseLandmarks)
+        : { score: null, summary: null, highlightedBones: [] };
 
     const hasPose = landmarks.length > 0;
     setPoseDetected(hasPose);
@@ -462,18 +469,35 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
         lineWidth: 2,
         radius: 3,
       });
+
+      if (userFrameLandmarks && normalizedGuidance.highlightedBones.length > 0) {
+        for (const highlightedBone of normalizedGuidance.highlightedBones) {
+          drawGuidanceBoneInRect(
+            canvasCtx,
+            mobileGuideRect,
+            fittedTargetPoseLandmarks,
+            highlightedBone
+          );
+        }
+      }
     }
 
     if (hasPose) {
-      const shouldScoreAgainstNormalizedTarget =
-        fittedTargetPoseLandmarks && isLikelyNormalizedLandmarks(fittedTargetPoseLandmarks);
-      const userLandmarksForScore = worldLandmarks[0] ?? landmarks[0];
-      const score = fittedTargetPoseLandmarks
-        ? computePoseMatchScore(
-            shouldScoreAgainstNormalizedTarget ? landmarks[0] : userLandmarksForScore,
-            fittedTargetPoseLandmarks
-          )
-        : null;
+      const hasWorldTarget =
+        targetPoseWorldLandmarks && targetPoseWorldLandmarks.length > 0;
+      const userWorldLandmarks = result.worldLandmarks?.[0];
+
+      const score = hasWorldTarget && userWorldLandmarks
+        ? computePoseMatchScore(userWorldLandmarks, targetPoseWorldLandmarks)
+        : normalizedGuidance.score;
+      const relativeDistance =
+        hasNormalizedTarget && userFrameLandmarks
+          ? computeRelativeDistanceGuidance(
+              userFrameLandmarks,
+              fittedTargetPoseLandmarks,
+              smoothedScaleRatioRef.current
+            )
+          : null;
       const currentTime = performance.now();
 
       if (currentTime - lastScoreUpdateTimeRef.current >= 120) {
@@ -482,6 +506,27 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
         const callback = poseMatchCallbackRef.current;
         if (callback) {
           callback(score);
+        }
+
+        const guidanceCallback = poseGuidanceCallbackRef.current;
+        if (guidanceCallback) {
+          guidanceCallback(normalizedGuidance.summary);
+        }
+
+        if (relativeDistance) {
+          smoothedScaleRatioRef.current = relativeDistance.smoothedRatio;
+          lastRelativeDistanceGuidanceRef.current = relativeDistance.guidance;
+          const guidanceCallback = relativeDistanceCallbackRef.current;
+          if (guidanceCallback) {
+            guidanceCallback(relativeDistance.guidance);
+          }
+        } else if (lastRelativeDistanceGuidanceRef.current !== null) {
+          smoothedScaleRatioRef.current = null;
+          lastRelativeDistanceGuidanceRef.current = null;
+          const guidanceCallback = relativeDistanceCallbackRef.current;
+          if (guidanceCallback) {
+            guidanceCallback(null);
+          }
         }
       }
 
@@ -504,6 +549,20 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
       if (callback) {
         callback(null);
       }
+
+      const guidanceCallback = poseGuidanceCallbackRef.current;
+      if (guidanceCallback) {
+        guidanceCallback(null);
+      }
+
+      if (lastRelativeDistanceGuidanceRef.current !== null) {
+        smoothedScaleRatioRef.current = null;
+        lastRelativeDistanceGuidanceRef.current = null;
+        const guidanceCallback = relativeDistanceCallbackRef.current;
+        if (guidanceCallback) {
+          guidanceCallback(null);
+        }
+      }
     }
 
     const callbackFn = callbackRef.current;
@@ -521,7 +580,12 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
     }
 
     scheduleNextFrame();
-  }, [showTargetPoseOverlay, fittedTargetPoseLandmarks, poseMatchScore]);
+  }, [
+    showTargetPoseOverlay,
+    fittedTargetPoseLandmarks,
+    targetPoseWorldLandmarks,
+    poseMatchScore,
+  ]);
 
   useEffect(() => {
     detectPoseRef.current = detectPose;
