@@ -75,26 +75,13 @@ export default function ResultsPageClient({ target }: { target?: string }) {
     return <div className="min-h-screen p-8">{error || "No data available."}</div>;
   }
 
-  const targetQuery = target ? `?pose=${encodeURIComponent(target)}` : "";
-
   return (
-    <div className="min-h-screen bg-slate-950">
-      <div className="mx-auto max-w-6xl px-4 py-4">
-        <button
-          type="button"
-          onClick={() => router.push(`/camera${targetQuery}`)}
-          className="mb-4 rounded-lg border border-sky-500 bg-sky-500 px-3 py-2 text-sm font-semibold text-white hover:bg-sky-600"
-        >
-          Try Again
-        </button>
-      </div>
-
-      <Results
-        pose={comparisonPose}
-        referencePose={referencePose}
-        photo={comparisonPhoto}
-        referencePhoto={referencePhoto}
-      />
-    </div>
+    <Results
+      pose={comparisonPose}
+      referencePose={referencePose}
+      photo={comparisonPhoto}
+      referencePhoto={referencePhoto}
+      target={target}
+    />
   );
 }
