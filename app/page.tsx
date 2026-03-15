@@ -3,45 +3,74 @@ import Link from "next/link";
 
 export default function Home() {
   return (
-    <div className="relative min-h-screen overflow-hidden font-sans">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden font-sans">
 
       {/* Background image */}
-      <div className="absolute inset-0 -z-20 bg-cover bg-center" style={{ backgroundImage: "url('/background.jpg')" }} />
+      {/* <div className="absolute inset-0 -z-20 bg-cover bg-center" style={{ backgroundImage: "url('/background.jpg')" }} /> */}
 
       {/* Background gradients */}
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(56,189,248,0.15),transparent)] -z-10" />
 
-      {/* Spline scene */}
-      <div className="absolute inset-0 z-0">
-        <Spline scene="https://prod.spline.design/bDJOcNEVMiAlLDy1/scene.splinecode" />
-      </div>
-
-      {/* Title */}
-      <div className="absolute bottom-44 left-1/2 z-10 -translate-x-1/2 text-center drop-shadow-lg">
-        <h1
-          className="text-5xl font-black tracking-[0.35em] bg-gradient-to-r from-sky-400 via-indigo-400 to-blue-600 bg-clip-text text-transparent md:text-7xl"
+      {/* Centered rounded rectangle with drop shadow - matches poses/camera page background */}
+      <div className="relative h-[812px] w-full overflow-hidden rounded-3xl bg-gradient-to-b from-violet-50 via-white to-sky-50 shadow-2xl shadow-black/30">
+        {/* Grid overlay - background */}
+        <div
+          className="absolute inset-0 z-0 rounded-3xl opacity-40"
           style={{
-            textShadow: "0 4px 12px rgba(0,0,0,0.25)",
-            backgroundImage:
-              "linear-gradient(150deg,#7fdbff,#93B5F4,#3b82f6,#1d4ed8)",
+            backgroundImage: `
+              linear-gradient(rgba(0,0,0,0.06) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(0,0,0,0.06) 1px, transparent 1px)
+            `,
+            backgroundSize: "24px 24px",
           }}
+        />
+        {/* Spline scene - full size */}
+        <div className="absolute inset-0 z-0 overflow-hidden rounded-3xl">
+          <Spline scene="https://prod.spline.design/bDJOcNEVMiAlLDy1/scene.splinecode" />
+        </div>
+
+        {/* Title - viewfinder-style backdrop */}
+        <div className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2">
+          {/* Viewfinder frame with corner brackets */}
+          <div
+            className="relative rounded-sm px-10 py-8 text-center backdrop-blur-md"
+            style={{
+              backgroundColor: "rgba(0,0,0,0.4)",
+              border: "2px solid rgba(255,255,255,0.25)",
+              boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.3), 0 4px 24px rgba(0,0,0,0.4)",
+            }}
+          >
+            {/* Corner brackets - viewfinder style */}
+            <div className="pointer-events-none absolute -left-1 -top-1 h-6 w-6 border-l-2 border-t-2 border-white/60" />
+            <div className="pointer-events-none absolute -right-1 -top-1 h-6 w-6 border-r-2 border-t-2 border-white/60" />
+            <div className="pointer-events-none absolute -bottom-1 -left-1 h-6 w-6 border-b-2 border-l-2 border-white/60" />
+            <div className="pointer-events-none absolute -bottom-1 -right-1 h-6 w-6 border-b-2 border-r-2 border-white/60" />
+            <h1
+              className="text-5xl font-extrabold tracking-[0.4em] text-white md:text-6xl"
+              style={{
+                textIndent: "0.2em",
+                filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5)) drop-shadow(0 4px 12px rgba(0,0,0,0.4))",
+              }}
+            >
+              POSEIDON
+            </h1>
+            <p className="mt-2 text-sm font-medium tracking-widest text-white/95" style={{ filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.5))" }}>Pose perfect</p>
+          </div>
+        </div>
+
+        {/* Start button */}
+        <Link
+          href="/poses"
+          className="absolute bottom-44 left-1/2 z-10 -translate-x-1/2 rounded-xl px-10 py-3 font-semibold text-white shadow-lg transition duration-200 ease-out hover:brightness-90 hover:scale-105"
+          style={{ backgroundColor: "#93B5F4" }}
         >
-          POSEIDON
-        </h1>
-      </div>
+          Start
+        </Link>
 
-      {/* Start button */}
-      <Link
-        href="/poses"
-        className="absolute bottom-28 left-1/2 z-10 -translate-x-1/2 rounded-xl px-10 py-3 font-semibold text-white shadow-lg transition duration-200 ease-out hover:brightness-90 hover:scale-105"
-        style={{ backgroundColor: "#93B5F4" }}
-      >
-        Start
-      </Link>
-
-      {/* Footer text */}
-      <div className="absolute bottom-4 left-1/2 z-10 -translate-x-1/2 text-center text-xs font-semibold text-[#93B5F4]">
-        UNIHACK 2026
+        {/* Footer text */}
+        <div className="absolute bottom-4 left-1/2 z-10 -translate-x-1/2 text-center text-xs font-semibold text-[#93B5F4]">
+          UNIHACK 2026
+        </div>
       </div>
     </div>
   );
