@@ -5,7 +5,6 @@ import SkeletonViewer from "./skeletonViewer";
 
 import { PoseLandmarker } from "@mediapipe/tasks-vision";
 import { Pose } from "../types";
-import Image, { StaticImageData } from "next/image";
 
 export default function Results({
   pose,
@@ -15,8 +14,8 @@ export default function Results({
 }: {
   pose: Pose;
   referencePose: Pose;
-  photo: StaticImageData;
-  referencePhoto: StaticImageData;
+  photo: string;
+  referencePhoto: string;
 }) {
   const router = useRouter();
   return (
@@ -58,7 +57,7 @@ export default function Results({
               bg-slate-900 p-4 relative overflow-hidden"
             >
               <img
-                src={photo.src}
+                src={photo}
                 alt="Reference pose"
                 className="w-full h-full object-contain rounded-lg"
               />
@@ -68,7 +67,7 @@ export default function Results({
               bg-slate-900 p-4 overflow-hidden"
             >
               <img
-                src={referencePhoto.src}
+                src={referencePhoto}
                 alt="Reference pose"
                 className="w-full h-full object-contain rounded-lg"
               />
