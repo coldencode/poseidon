@@ -125,7 +125,7 @@ function CameraPageContent() {
     const targetId = selected.targetPoseId || selectedPoseId;
     setShowResultConfirm(false);
     if (targetId) {
-      router.push(`/results?target=${encodeURIComponent(targetId)}`);
+      router.push(`/results?pose=${encodeURIComponent(targetId)}`);
     } else {
       router.push("/results");
     }
