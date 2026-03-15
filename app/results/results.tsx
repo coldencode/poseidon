@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import SkeletonViewer from "./skeletonViewer";
 
 import { NormalizedLandmark, PoseLandmarker } from "@mediapipe/tasks-vision";
-import { PHOTO_STORAGE_KEY, Point3D, Pose } from "../types";
+import { CapturedItem, PHOTO_STORAGE_KEY, Point3D, Pose } from "../types";
 import Image, { StaticImageData } from "next/image";
 import { useEffect, useState } from "react";
 import { detectPoseInFrame } from "@/src/lib/imageToPose";
@@ -47,44 +47,43 @@ export default function Results({
   const router = useRouter();
   const searchParams = useSearchParams();
   const selectedPoseId = searchParams.get("pose");
-  
 
-  const [userPhotos, setUserPhotos] = useState<string[]>(() => {
-    if (typeof window === "undefined") return [];
-    const savedPhotos = localStorage.getItem(PHOTO_STORAGE_KEY);
-    if (!savedPhotos) return [];
-    try {
-      const parsed = JSON.parse(savedPhotos);
-      if (Array.isArray(parsed)) {
-        return parsed.filter((item) => typeof item === "string");
-      }
-    } catch {
-      localStorage.removeItem(PHOTO_STORAGE_KEY);
-    }
-    return [];
-  });
+  // AFTER — start empty, load after mount
+  const [userPhotos, setUserPhotos] = useState<string[]>([]);
+
+  const [currentUserLandmarks, setCurrentUserLandmarks] = useState<Point3D[]>(
+    [],
+  );
 
   const [targetPoseLandmarks, setTargetPoseLandmarks] = useState<
     Point3D[] | undefined
   >(undefined);
   const [targetPoseImage, setTargetPoseImage] = useState<string | null>(null);
   const [targetPoseLabel, setTargetPoseLabel] = useState<string | null>(null);
-  const [currentUserImage, setCurrentUserImage] = useState<string | null>(
-    () => {
-      if (typeof window === "undefined") return null;
-      const savedPhotos = localStorage.getItem(PHOTO_STORAGE_KEY);
-      try {
-        const parsed = JSON.parse(savedPhotos ?? "[]");
-        return Array.isArray(parsed) && parsed.length > 0 ? parsed[0] : null;
-      } catch {
-        return null;
-      }
-    },
-  );
-  const [currentUserLandmarks, setCurrentUserLandmarks] = useState<Point3D[]>(
-    [],
-  );
+  const [currentUserImage, setCurrentUserImage] = useState<string | null>(null);
+  useEffect(() => {
+    const savedPhotos = localStorage.getItem(PHOTO_STORAGE_KEY);
+    if (!savedPhotos) return;
+    try {
+      const parsed = JSON.parse(savedPhotos);
+      if (Array.isArray(parsed)) {
+        // Extract .photo from CapturedItem objects (written by camera page)
+        const photos = parsed
+          .filter(
+            (item) =>
+              item &&
+              typeof item === "object" &&
+              typeof item.photo === "string",
+          )
+          .map((item) => item.photo as string);
 
+        setUserPhotos(photos);
+        setCurrentUserImage(photos[0] ?? null);
+      }
+    } catch {
+      localStorage.removeItem(PHOTO_STORAGE_KEY);
+    }
+  }, []);
   const detectPose = async () => {
     if (currentUserImage) {
       const pose = await detectPoseInFrame(currentUserImage);
@@ -145,7 +144,6 @@ export default function Results({
     runDetection();
   }, [currentUserImage]);
 
-
   const handleTryAgain = () => {
     const targetQuery = target ? `?pose=${encodeURIComponent(target)}` : "";
     router.push(`/camera${targetQuery}`);
@@ -179,7 +177,7 @@ export default function Results({
               className="flex-1 min-h-0 rounded-lg border border-slate-200
                           bg-white p-4 relative overflow-hidden shadow-sm"
             >
-              {currentUserImage ? (
+              {currentUserImage && currentUserImage.length > 0 ? (
                 <div className="relative w-full h-full">
                   <Image
                     src={currentUserImage}
@@ -195,14 +193,6 @@ export default function Results({
                 </div>
               )}
             </div>
-            <button
-              className="rounded-lg border border-slate-700
-                               bg-slate-900 p-2 text-sm text-slate-400
-                               hover:border-slate-500 transition font-semibold"
-              onClick={handleTryAgain}
-            >
-              Try Again
-            </button>
             <div className="h-[38px]" />
           </div>
 
@@ -255,7 +245,7 @@ export default function Results({
         <div className="grid grid-cols-2 gap-3 mt-3">
           <button
             className="rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-600 hover:border-slate-400 hover:bg-slate-50 transition font-semibold shadow-sm"
-            onClick={() => router.push("/poses")}
+            onClick={() => handleTryAgain()}
           >
             Try Again
           </button>
@@ -299,14 +289,23 @@ export default function Results({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    const updated = userPhotos.filter((_, i) => i !== index);
-                    setUserPhotos(updated);
+                    // Read the full objects, not just photos
+                    const saved = localStorage.getItem(PHOTO_STORAGE_KEY);
+                    const allItems: CapturedItem[] = saved
+                      ? JSON.parse(saved)
+                      : [];
+                    const updated = allItems.filter((_, i) => i !== index);
                     localStorage.setItem(
                       PHOTO_STORAGE_KEY,
                       JSON.stringify(updated),
                     );
+
+                    const updatedPhotos = userPhotos.filter(
+                      (_, i) => i !== index,
+                    );
+                    setUserPhotos(updatedPhotos);
                     if (currentUserImage === photo)
-                      setCurrentUserImage(updated[0] ?? null);
+                      setCurrentUserImage(updatedPhotos[0] ?? null);
                   }}
                   className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-red-500 text-white text-[10px] font-bold leading-none items-center justify-center shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-150 hidden group-hover:flex"
                   aria-label="Delete photo"
