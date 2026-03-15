@@ -41,9 +41,6 @@ function formatSkeletonForPrompt(rawSkeleton: string): string {
  * @returns {Promise<{success: boolean, response: string}>} - Object containing success flag and one-sentence improvement instruction
  */
 async function askGemini(user_skeleton: string, chosen_skeleton: string) {
-
-  console.log(user_skeleton);
-  console.log(chosen_skeleton);
   const userSkeleton = formatSkeletonForPrompt(user_skeleton);
   const chosenSkeleton = formatSkeletonForPrompt(chosen_skeleton);
 
@@ -64,32 +61,27 @@ async function askGemini(user_skeleton: string, chosen_skeleton: string) {
     ${chosenSkeleton}
 
     First, identify the overall pose categories of the current and target pose (e.g. standing, sitting, crouching).
-    Then give 3-5 instructions to transition from the current pose to the target pose.
-    Start with major changes, then get smaller:
-      1. Stand up
-      2. Raise your right arm up
-      3. Widen your chest
-      4. etc.
+    Then give the single most important instruction to transition from the current pose to the target pose.
+    Focus on the most significant difference first, and provide concise, relevant detail as if you were a professional photographer giving quick direction.
 
-    Instead of "Bring your left arm closer to your body", say "Bring your left arm closer to your chest", or
-    "Bring your left hand closer to your shoulder, resting your elbow near your chest", etc. Provide more **relevant** detail.
-    Closer / further is not that helpful.
+    Example commands:
+    - Stand up straight!
+    - Raise your right arm up a bit.
+    - Widen your chest and bring your left arm closer to your body.
+    - Your left knee is bent, try straightening it and pointing it forward.
+    - Tilt your head slightly to the right and relax your shoulders.
 
-
-    If there are no major changes to make, provide just the relevant notes in order of importance, and provide fewer
-    to prevent overloading the user.
-
-    Give instructions the way a professional photographer would. Be concise.
+    If there are no major changes to make, provide positive feedback.
 
     Output format:
-    Current pose: [one word]
-    Target pose: [one word]
-    Instructions:
-    1. ...
-    2. ...
+    {
+      cur_pose_category: string;
+      target_pose_category: string;
+      necessary_improvements: string[];
+      instruction: string;
+    }
     `;
 
-  console.log(finalPrompt);
   const result = await genAI.models.generateContent({
     model: "gemini-2.5-flash-lite",
     contents: finalPrompt,
@@ -99,7 +91,14 @@ async function askGemini(user_skeleton: string, chosen_skeleton: string) {
     }
   });
 
-  const text = result.text;
+  const full_response = JSON.parse(result.text?.trim() ?? "") as {
+    cur_pose_category: string;
+    target_pose_category: string;
+    necessary_improvements: string[];
+    instruction: string;
+  };
+
+  const text = full_response.instruction;
 
   return { success: true, response: text ?? "" };
 }
@@ -170,7 +169,6 @@ export async function POST(req: Request) {
   try {
     // Get Gemini output
     const response = await askGemini(user_skeleton, chosen_skeleton);
-    console.log(response)
 
     // Audio location (optional - return text even if TTS fails)
     let text_to_speech: string | null = null;
