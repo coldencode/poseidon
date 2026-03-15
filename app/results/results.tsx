@@ -3,9 +3,9 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import SkeletonViewer from "./skeletonViewer";
 
-import { NormalizedLandmark, PoseLandmarker } from "@mediapipe/tasks-vision";
+import { NormalizedLandmark } from "@mediapipe/tasks-vision";
 import { PHOTO_STORAGE_KEY, Point3D, Pose } from "../types";
-import Image, { StaticImageData } from "next/image";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { detectPoseInFrame } from "@/src/lib/imageToPose";
 
@@ -66,23 +66,23 @@ export default function Results({
 
   const [targetPoseLandmarks, setTargetPoseLandmarks] = useState<
     Point3D[] | undefined
-  >(undefined);
-  const [targetPoseImage, setTargetPoseImage] = useState<string | null>(null);
-  const [targetPoseLabel, setTargetPoseLabel] = useState<string | null>(null);
+  >(referencePose.worldLandmarks[0] as Point3D[] | undefined);
+  const [targetPoseImage, setTargetPoseImage] = useState<string | null>(referencePhoto);
+  const [targetPoseLabel, setTargetPoseLabel] = useState<string | null>(target ?? referencePose.pose ?? null);
   const [currentUserImage, setCurrentUserImage] = useState<string | null>(
     () => {
       if (typeof window === "undefined") return null;
       const savedPhotos = localStorage.getItem(PHOTO_STORAGE_KEY);
       try {
         const parsed = JSON.parse(savedPhotos ?? "[]");
-        return Array.isArray(parsed) && parsed.length > 0 ? parsed[0] : null;
+        return Array.isArray(parsed) && parsed.length > 0 ? parsed[0] : photo;
       } catch {
-        return null;
+        return photo;
       }
     },
   );
   const [currentUserLandmarks, setCurrentUserLandmarks] = useState<Point3D[]>(
-    [],
+    (pose.worldLandmarks[0] as Point3D[] | undefined) ?? [],
   );
 
   const detectPose = async () => {
@@ -90,7 +90,6 @@ export default function Results({
       const pose = await detectPoseInFrame(currentUserImage);
       setCurrentUserLandmarks(pose.worldLandmarks as Point3D[]);
     }
-    console.log(currentUserLandmarks);
   };
 
   useEffect(() => {

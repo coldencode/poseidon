@@ -692,7 +692,6 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
       return;
     }
 
-    setRelativeDistanceGuidance(null);
     const flashOverlay = flashOverlayRef.current;
     if (!flashOverlay) {
       return;
