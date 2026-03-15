@@ -11,13 +11,21 @@ export default function Results({
   referencePose,
   photo,
   referencePhoto,
+  target,
 }: {
   pose: Pose;
   referencePose: Pose;
   photo: string;
   referencePhoto: string;
+  target?: string;
 }) {
   const router = useRouter();
+
+  const handleTryAgain = () => {
+    const targetQuery = target ? `?pose=${encodeURIComponent(target)}` : "";
+    router.push(`/camera${targetQuery}`);
+  };
+
   return (
     <div
       className="min-h-screen min-h-[100dvh] bg-slate-950
@@ -44,7 +52,7 @@ export default function Results({
               className="rounded-lg border border-slate-700
                                bg-slate-900 p-2 text-sm text-slate-400
                                hover:border-slate-500 transition font-semibold"
-              onClick={() => router.push("/pose")}
+              onClick={handleTryAgain}
             >
               Try Again
             </button>
