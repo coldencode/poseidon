@@ -141,6 +141,21 @@ function CameraPageContent() {
     setShowResultConfirm(true);
   }, []);
 
+  const handleDeleteCapture = useCallback((index: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCapturedItems((previousItems) => {
+      const updated = previousItems.filter((_, i) => i !== index);
+      localStorage.setItem(PHOTO_STORAGE_KEY, JSON.stringify(updated));
+      return updated;
+    });
+    if (selectedCaptureIndex === index) {
+      setShowResultConfirm(false);
+      setSelectedCaptureIndex(null);
+    } else if (selectedCaptureIndex !== null && selectedCaptureIndex > index) {
+      setSelectedCaptureIndex(selectedCaptureIndex - 1);
+    }
+  }, [selectedCaptureIndex]);
+
   const handleGoToResults = () => {
     if (selectedCaptureIndex === null) {
       return;
@@ -315,22 +330,36 @@ function CameraPageContent() {
               </div>
             ) : (
               capturedItems.map((photo, index) => (
-                <button
+                <div
                   key={`${photo.photo.slice(0, 24)}-${index}`}
-                  type="button"
-                  onClick={() => handleSelectCapture(index)}
-                  className="rounded-lg border border-slate-200 bg-white p-0 shadow-sm transition hover:scale-[1.02]"
-                  aria-label={`Select captured pose ${index + 1} for comparison`}
+                  className="relative flex-shrink-0"
                 >
-                  <Image
-                    src={photo.photo}
-                    alt={`Captured pose ${index + 1}`}
-                    width={48}
-                    height={64}
-                    unoptimized
-                    className="h-16 w-12 rounded-lg object-cover"
-                  />
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectCapture(index)}
+                    className="block rounded-lg border border-slate-200 bg-white p-0 shadow-sm transition hover:scale-[1.02]"
+                    aria-label={`Select captured pose ${index + 1} for comparison`}
+                  >
+                    <Image
+                      src={photo.photo}
+                      alt={`Captured pose ${index + 1}`}
+                      width={48}
+                      height={64}
+                      unoptimized
+                      className="h-16 w-12 rounded-lg object-cover"
+                    />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => handleDeleteCapture(index, e)}
+                    className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-slate-700 text-white shadow-md transition hover:bg-red-500 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                    aria-label={`Delete captured pose ${index + 1}`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
               ))
             )}
             <label className="flex h-16 w-12 flex-shrink-0 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white text-slate-400 shadow-sm transition hover:border-slate-400 hover:text-slate-600">
