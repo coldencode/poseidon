@@ -2,11 +2,8 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { Point3D, Connection } from "../types";
-import {
-  createArrowBetweenPoints,
-  createDifferenceArrows,
-  MEDIAPIPE_CONNECTIONS,
-} from "../util";
+import { createDifferenceArrows, MEDIAPIPE_CONNECTIONS } from "../util";
+
 export interface SceneState {
   renderer: THREE.WebGLRenderer;
   scene: THREE.Scene;
@@ -19,6 +16,8 @@ export interface SceneState {
 }
 function buildSkeleton(pts: Point3D[], color: number, offsetX: number) {
   const group = new THREE.Group();
+
+  if (!pts || pts.length === 0) return group;
   const mat = new THREE.MeshPhongMaterial({ color });
   const boneMat = new THREE.MeshPhongMaterial({
     color,
@@ -28,19 +27,31 @@ function buildSkeleton(pts: Point3D[], color: number, offsetX: number) {
   if (!pts || pts.length === 0 || !pts[0]) {
     return group;
   }
-  // Head sphere at landmark 0 (nose), sized to feel like a real head
-  const headPos = new THREE.Vector3((pts[0].x + offsetX), -pts[0].y, -pts[0].z);
+  const head = pts[0];
+  if (
+    !head ||
+    typeof head.x !== "number" ||
+    typeof head.y !== "number" ||
+    typeof head.z !== "number"
+  )
+    return group;
+
+  const headPos = new THREE.Vector3(pts[0].x + offsetX, -pts[0].y, -pts[0].z);
   const headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 16), mat);
   headMesh.position.copy(headPos);
   group.add(headMesh);
   MEDIAPIPE_CONNECTIONS.forEach(({ start, end, radius }) => {
     if (start >= pts.length || end >= pts.length) return;
     const pA = new THREE.Vector3(
-      (pts[start].x + offsetX),
+      pts[start].x + offsetX,
       -pts[start].y,
       -pts[start].z,
     );
-    const pB = new THREE.Vector3((pts[end].x + offsetX), -pts[end].y, -pts[end].z);
+    const pB = new THREE.Vector3(
+      pts[end].x + offsetX,
+      -pts[end].y,
+      -pts[end].z,
+    );
     const dir = new THREE.Vector3().subVectors(pB, pA);
     const len = dir.length();
     const mid = new THREE.Vector3().addVectors(pA, pB).multiplyScalar(0.5);
@@ -67,12 +78,13 @@ function buildSkeleton(pts: Point3D[], color: number, offsetX: number) {
   });
   return group;
 }
+
 export default function SkeletonViewer({
   pose,
   referencePose,
 }: {
-  pose: Point3D[];
-  referencePose: Point3D[];
+  pose?: Point3D[];
+  referencePose?: Point3D[];
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const stateRef = useRef<Partial<SceneState>>({});
@@ -95,13 +107,17 @@ export default function SkeletonViewer({
     const h = container.clientHeight;
     renderer.setSize(w, h);
     const scene = new THREE.Scene();
+    // Light background color
+    scene.background = new THREE.Color(0xf8fafc);
+
     const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 100);
     camera.position.set(0, 0, 3.5);
     scene.add(new THREE.AmbientLight(0xffffff, 0.8));
     const dir = new THREE.DirectionalLight(0xffffff, 0.6);
     dir.position.set(1, 2, 3);
     scene.add(dir);
-    // After scene setup, before adding pivot
+
+    // Dot grid — dark dots on light background
     const dotGeometry = new THREE.BufferGeometry();
     const positions: number[] = [];
     const spacing = 0.3;
@@ -116,25 +132,31 @@ export default function SkeletonViewer({
       new THREE.Float32BufferAttribute(positions, 3),
     );
     const dotMaterial = new THREE.PointsMaterial({
-      color: "#ffffff",
+      color: "#94a3b8",
       sizeAttenuation: false,
       size: 2,
-      opacity: 0.2,
+      opacity: 0.4,
       transparent: true,
     });
     scene.add(new THREE.Points(dotGeometry, dotMaterial));
     const pivot = new THREE.Group();
-    console.log(showPose);
-    const poseSkeleton = buildSkeleton(pose, 0x4a9eff, 0);
-    const refSkeleton = buildSkeleton(referencePose, 0xff7b4a, 0);
-    if (showPose) pivot.add(poseSkeleton);
-    if (showReference) pivot.add(refSkeleton);
-    if (!showPose) pivot.remove(poseSkeleton);
-    if (!showReference) pivot.remove(refSkeleton);
-    // Get world positions of both skeleton roots (or any specific joint)
-    // const arrow = createArrowBetweenPoints(a1, b1);
-    // pivot.add(createArrowBetweenPoints(pose[15], referencePose[15]));
-    // pivot.add(arrow);
+
+    if (referencePose && pose) {
+      const poseSkeleton = buildSkeleton(pose, 0x2563eb, 0);
+
+      const refSkeleton = buildSkeleton(referencePose, 0xea580c, 0);
+      if (showReference) pivot.add(refSkeleton);
+      if (!showReference) pivot.remove(refSkeleton);
+      const arrows = createDifferenceArrows(pose, referencePose, 0x475569);
+      if (showArrows) {
+        pivot.add(arrows);
+      } else {
+        pivot.remove(arrows);
+      }
+      if (showPose) pivot.add(poseSkeleton);
+      if (!showPose) pivot.remove(poseSkeleton);
+    }
+
     scene.add(pivot);
     stateRef.current = {
       renderer,
@@ -145,13 +167,7 @@ export default function SkeletonViewer({
       lastX: 0,
       lastY: 0,
     };
-    const arrows = createDifferenceArrows(pose, referencePose, 0xffffff);
-    if (showArrows) {
-      pivot.add(arrows);
-    } else {
-      pivot.remove(arrows)
-    }
-    /** Viewport dragging */
+
     const getXY = (e: MouseEvent | TouchEvent): [number, number] =>
       "touches" in e
         ? [e.touches[0].clientX, e.touches[0].clientY]
@@ -220,6 +236,24 @@ export default function SkeletonViewer({
     };
   }, [showPose, showReference, showArrows]);
   useEffect(() => {
+    const s = stateRef.current;
+    if (!s.pivot) return;
+
+    // Remove old skeleton groups (keep dots/lights which are index 0,1)
+    const toRemove = s.pivot.children.slice();
+    toRemove.forEach((child) => s.pivot!.remove(child));
+
+    if (referencePose && pose) {
+      const poseSkeleton = buildSkeleton(pose, 0x2563eb, 0);
+      const refSkeleton = buildSkeleton(referencePose, 0xea580c, 0);
+      const arrows = createDifferenceArrows(pose, referencePose, 0x475569);
+
+      if (showPose) s.pivot.add(poseSkeleton);
+      if (showReference) s.pivot.add(refSkeleton);
+      if (showArrows) s.pivot.add(arrows);
+    }
+  }, [pose, referencePose]);
+  useEffect(() => {
     stateRef.current.autoRotate = autoRotate;
   }, [autoRotate]);
   return (
@@ -237,14 +271,14 @@ export default function SkeletonViewer({
           }}
         >
           {[
-            ["#4a9eff", "Your Pose", showPose, () => setShowPose((p) => !p)],
+            ["#2563eb", "Your Pose", showPose, () => setShowPose((p) => !p)],
             [
-              "#ff7b4a",
+              "#ea580c",
               "Reference Pose",
               showReference,
               () => setShowReference((p) => !p),
             ],
-            ["#ffffff", "Arrows", showArrows, () => setShowArrows((p) => !p)],
+            ["#475569", "Arrows", showArrows, () => setShowArrows((p) => !p)],
           ].map(([color, label, visible, toggle]) => (
             <div
               key={label as string}
@@ -253,12 +287,12 @@ export default function SkeletonViewer({
                 display: "flex",
                 alignItems: "center",
                 gap: 6,
-                background: "rgba(255,255,255,0.07)",
-                border: `0.5px solid ${visible ? (color as string) : "rgba(255,255,255,0.15)"}`,
+                background: "rgba(0,0,0,0.05)",
+                border: `0.5px solid ${visible ? (color as string) : "rgba(0,0,0,0.15)"}`,
                 borderRadius: 8,
                 padding: "6px 10px",
                 fontSize: 13,
-                color: visible ? "#fff" : "rgba(255,255,255,0.4)",
+                color: visible ? "#1e293b" : "rgba(0,0,0,0.35)",
                 cursor: "pointer",
                 userSelect: "none",
                 transition: "all 0.15s ease",
@@ -278,16 +312,16 @@ export default function SkeletonViewer({
           ))}
         </div>
         {/* Controls */}
-        <div style={{ position: "absolute", top: 12, right: 12 }}>
+        <div style={{ position: "absolute", bottom: 12, right: 12 }}>
           <button
             onClick={() => setAutoRotate((v) => !v)}
             style={{
-              background: "rgba(255,255,255,0.07)",
-              border: "0.5px solid rgba(255,255,255,0.2)",
+              background: "rgba(0,0,0,0.05)",
+              border: "0.5px solid rgba(0,0,0,0.15)",
               borderRadius: 8,
               padding: "6px 12px",
               fontSize: 13,
-              color: "#fff",
+              color: "#1e293b",
               cursor: "pointer",
             }}
           >
@@ -301,7 +335,7 @@ export default function SkeletonViewer({
             bottom: 12,
             left: 12,
             fontSize: 12,
-            color: "rgba(255,255,255,0.35)",
+            color: "rgba(0,0,0,0.35)",
           }}
         >
           Drag to rotate · Scroll to zoom
