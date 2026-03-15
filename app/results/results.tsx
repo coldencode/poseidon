@@ -3,9 +3,9 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import SkeletonViewer from "./skeletonViewer";
 
-import { NormalizedLandmark, PoseLandmarker } from "@mediapipe/tasks-vision";
+import { NormalizedLandmark } from "@mediapipe/tasks-vision";
 import { CapturedItem, PHOTO_STORAGE_KEY, Point3D, Pose } from "../types";
-import Image, { StaticImageData } from "next/image";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { detectPoseInFrame } from "@/src/lib/imageToPose";
 
@@ -16,8 +16,6 @@ type PoseLibraryJson = {
 };
 
 export default function Results({
-  pose,
-  referencePose,
   photo,
   referencePhoto,
   target,
@@ -58,8 +56,6 @@ export default function Results({
   const [targetPoseLandmarks, setTargetPoseLandmarks] = useState<
     Point3D[] | undefined
   >(undefined);
-  const [targetPoseImage, setTargetPoseImage] = useState<string | null>(null);
-  const [targetPoseLabel, setTargetPoseLabel] = useState<string | null>(null);
   const [currentUserImage, setCurrentUserImage] = useState<string | null>(null);
   useEffect(() => {
     const savedPhotos = localStorage.getItem(PHOTO_STORAGE_KEY);
@@ -89,7 +85,6 @@ export default function Results({
       const pose = await detectPoseInFrame(currentUserImage);
       setCurrentUserLandmarks(pose.worldLandmarks as Point3D[]);
     }
-    console.log(currentUserLandmarks);
   };
 
   useEffect(() => {
@@ -98,8 +93,6 @@ export default function Results({
     const loadTargetPose = async () => {
       if (!selectedPoseId) {
         setTargetPoseLandmarks(undefined);
-        setTargetPoseImage(null);
-        setTargetPoseLabel(null);
         return;
       }
 
@@ -115,17 +108,9 @@ export default function Results({
         if (!isActive) return;
 
         setTargetPoseLandmarks(firstLandmarks);
-        setTargetPoseImage(
-          parsed.pose
-            ? `/pose-library/${parsed.pose}`
-            : `/pose-library/${selectedPoseId}.png`,
-        );
-        setTargetPoseLabel(selectedPoseId.replace(/[-_]+/g, " "));
       } catch {
         if (!isActive) return;
         setTargetPoseLandmarks(undefined);
-        setTargetPoseImage(null);
-        setTargetPoseLabel(null);
       }
     };
 

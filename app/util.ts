@@ -24,7 +24,7 @@ export function createBezierArrowBetweenPoints(
   // Perpendicular offset: cross the direction with an up vector,
   // then fall back to a different axis if they're parallel
   const dir = new THREE.Vector3().subVectors(posB, posA).normalize();
-  let up = new THREE.Vector3(0, 1, 0);
+  const up = new THREE.Vector3(0, 1, 0);
   if (Math.abs(dir.dot(up)) > 0.99) up.set(1, 0, 0);
   const perp = new THREE.Vector3().crossVectors(dir, up).normalize();
 
@@ -33,8 +33,6 @@ export function createBezierArrowBetweenPoints(
 
   // Sample the quadratic Bézier into a CatmullRom curve
   const curve = new THREE.QuadraticBezierCurve3(posA, controlPoint, posB);
-  const points = curve.getPoints(tubeSegments);
-  const path = new THREE.CatmullRomCurve3(points);
 
   // --- Tube (arrow shaft) ---
   // Stop the tube short so the cone doesn't overlap it

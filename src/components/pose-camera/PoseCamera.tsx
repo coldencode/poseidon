@@ -586,6 +586,7 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
   onSkeletonUpdate,
   onPhotoCaptured,
   onPoseMatchScoreUpdate,
+  flashSignal,
   onPoseGuidanceUpdate,
   onRelativeDistanceGuidanceUpdate,
   callbackIntervalMs = 5000,
@@ -620,6 +621,8 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
     useRef<RelativeDistanceGuidance | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const detectPoseRef = useRef<() => void>(() => undefined);
+  const flashOverlayRef = useRef<HTMLDivElement>(null);
+
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [poseDetected, setPoseDetected] = useState(false);
@@ -683,19 +686,30 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
   useEffect(() => {
     callbackIntervalRef.current = callbackIntervalMs;
   }, [callbackIntervalMs]);
+
   useEffect(() => {
-    smoothedScaleRatioRef.current = null;
-    lastRelativeDistanceGuidanceRef.current = null;
-    setRelativeDistanceGuidance(null);
-    const callback = relativeDistanceCallbackRef.current;
-    if (callback) {
-      callback(null);
+    if (typeof flashSignal !== "number") {
+      return;
     }
-    const guidanceCallback = poseGuidanceCallbackRef.current;
-    if (guidanceCallback) {
-      guidanceCallback(null);
+
+    const flashOverlay = flashOverlayRef.current;
+    if (!flashOverlay) {
+      return;
     }
-  }, [fittedTargetPoseLandmarks]);
+
+    flashOverlay.style.transition = "none";
+    flashOverlay.style.opacity = "0.65";
+
+    const frameId = window.requestAnimationFrame(() => {
+      flashOverlay.style.transition = "opacity 170ms ease-out";
+      flashOverlay.style.opacity = "0";
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [flashSignal]);
+
   // Initialize MediaPipe Pose Landmarker
   const initPoseLandmarker = useCallback(async () => {
     try {
@@ -1043,6 +1057,9 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
           muted
         />
         <canvas ref={canvasRef} style={styles.canvas} />
+
+        <div ref={flashOverlayRef} style={styles.flashOverlay} />
+
         {lastCapturedImage ? (
           <Image
             src={lastCapturedImage}

@@ -1,11 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Results from "./results";
 import { Pose, PoseSnapshot } from "../types";
 const LAST_COMPARISON_KEY = "poseidon.lastComparison";
 export default function ResultsPageClient({ target }: { target?: string }) {
-  const router = useRouter();
   const [referencePose, setReferencePose] = useState<Pose | null>(null);
   const [comparisonPose, setComparisonPose] = useState<Pose | null>(null);
   const [referencePhoto, setReferencePhoto] = useState<string>("/pose-library/baddie_pose.png");
@@ -61,7 +59,7 @@ export default function ResultsPageClient({ target }: { target?: string }) {
           setComparisonPhoto("/pose-library/ankle_hurt_pose.png");
         }
         setLoading(false);
-      } catch (err) {
+      } catch {
         setError("Unable to load comparison data.");
         setLoading(false);
       }

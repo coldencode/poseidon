@@ -25,6 +25,7 @@ export type PoseCameraProps = {
   onSkeletonUpdate?: (snapshot: PoseSnapshot) => void;
   onPhotoCaptured?: (imageDataUrl: string) => void;
   onPoseMatchScoreUpdate?: (score: number | null) => void;
+  flashSignal?: number;
   onPoseGuidanceUpdate?: (guidance: PoseGuidanceSummary | null) => void;
   onRelativeDistanceGuidanceUpdate?: (
     guidance: RelativeDistanceGuidance | null,

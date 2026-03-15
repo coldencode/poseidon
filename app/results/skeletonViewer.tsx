@@ -1,7 +1,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
-import { Point3D, Connection } from "../types";
+import { Point3D } from "../types";
 import { createDifferenceArrows, MEDIAPIPE_CONNECTIONS } from "../util";
 
 export interface SceneState {
@@ -234,7 +234,7 @@ export default function SkeletonViewer({
       canvas.removeEventListener("touchmove", onMove);
       canvas.removeEventListener("wheel", onWheel);
     };
-  }, [showPose, showReference, showArrows]);
+  }, [pose, referencePose, showPose, showReference, showArrows]);
   useEffect(() => {
     const s = stateRef.current;
     if (!s.pivot) return;
@@ -252,7 +252,7 @@ export default function SkeletonViewer({
       if (showReference) s.pivot.add(refSkeleton);
       if (showArrows) s.pivot.add(arrows);
     }
-  }, [pose, referencePose]);
+  }, [pose, referencePose, showPose, showReference, showArrows]);
   useEffect(() => {
     stateRef.current.autoRotate = autoRotate;
   }, [autoRotate]);
