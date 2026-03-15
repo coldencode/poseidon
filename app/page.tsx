@@ -31,30 +31,36 @@ export default function Home() {
 
         {/* Title - viewfinder-style backdrop */}
         <div className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2">
-          {/* Viewfinder frame with corner brackets */}
+          {/* Viewfinder frame with corner brackets - smaller on mobile */}
           <div
-            className="relative rounded-sm px-10 py-8 text-center backdrop-blur-md"
+            className="relative rounded-sm px-5 py-4 text-center backdrop-blur-md md:px-10 md:py-8"
             style={{
               backgroundColor: "rgba(0,0,0,0.4)",
               border: "2px solid rgba(255,255,255,0.25)",
               boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.3), 0 4px 24px rgba(0,0,0,0.4)",
             }}
           >
+            {/* Traffic light buttons - decorative */}
+            <div className="pointer-events-none absolute right-3 top-3 flex gap-1.5 md:right-4 md:top-4 md:gap-2">
+              <div className="h-2 w-2 rounded-full bg-[#ff5f57] md:h-2.5 md:w-2.5" />
+              <div className="h-2 w-2 rounded-full bg-[#febc2e] md:h-2.5 md:w-2.5" />
+              <div className="h-2 w-2 rounded-full bg-[#28c840] md:h-2.5 md:w-2.5" />
+            </div>
             {/* Corner brackets - viewfinder style */}
-            <div className="pointer-events-none absolute -left-1 -top-1 h-6 w-6 border-l-2 border-t-2 border-white/60" />
-            <div className="pointer-events-none absolute -right-1 -top-1 h-6 w-6 border-r-2 border-t-2 border-white/60" />
-            <div className="pointer-events-none absolute -bottom-1 -left-1 h-6 w-6 border-b-2 border-l-2 border-white/60" />
-            <div className="pointer-events-none absolute -bottom-1 -right-1 h-6 w-6 border-b-2 border-r-2 border-white/60" />
+            <div className="pointer-events-none absolute -left-1 -top-1 h-4 w-4 border-l-2 border-t-2 border-white/60 md:h-6 md:w-6" />
+            <div className="pointer-events-none absolute -right-1 -top-1 h-4 w-4 border-r-2 border-t-2 border-white/60 md:h-6 md:w-6" />
+            <div className="pointer-events-none absolute -bottom-1 -left-1 h-4 w-4 border-b-2 border-l-2 border-white/60 md:h-6 md:w-6" />
+            <div className="pointer-events-none absolute -bottom-1 -right-1 h-4 w-4 border-b-2 border-r-2 border-white/60 md:h-6 md:w-6" />
             <h1
-              className="text-5xl font-extrabold tracking-[0.4em] text-white md:text-6xl"
+              className="text-2xl font-extrabold tracking-[0.2em] text-white md:text-5xl md:tracking-[0.4em] lg:text-6xl"
               style={{
-                textIndent: "0.2em",
+                textIndent: "0.1em",
                 filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.5)) drop-shadow(0 4px 12px rgba(0,0,0,0.4))",
               }}
             >
               POSEIDON
             </h1>
-            <p className="mt-2 text-sm font-medium tracking-widest text-white/95" style={{ filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.5))" }}>Pose perfect</p>
+            <p className="mt-1 text-xs font-medium tracking-widest text-white/95 md:mt-2 md:text-sm" style={{ filter: "drop-shadow(0 1px 3px rgba(0,0,0,0.5))" }}>Pose perfect</p>
           </div>
         </div>
 
