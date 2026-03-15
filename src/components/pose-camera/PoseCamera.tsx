@@ -187,6 +187,394 @@ const drawPoseLandmarkSetInRect = (
   }
 };
 
+const drawSoftBodyOverlayInRect = (
+  poseLandmarks: NormalizedLandmark[],
+  canvasCtx: CanvasRenderingContext2D,
+  rect: ProjectionRect
+) => {
+  const overlayCanvas = document.createElement("canvas");
+  overlayCanvas.width = canvasCtx.canvas.width;
+  overlayCanvas.height = canvasCtx.canvas.height;
+
+  const overlayCtx = overlayCanvas.getContext("2d");
+  if (!overlayCtx) {
+    return;
+  }
+
+  const drawCtx = overlayCtx;
+  const overlayAlpha = 0.24;
+
+  const projectPoint = (landmark: NormalizedLandmark) => ({
+    x: rect.x + (1 - landmark.x) * rect.width,
+    y: rect.y + landmark.y * rect.height,
+  });
+
+  const normalizeVector = (x: number, y: number) => {
+    const magnitude = Math.hypot(x, y);
+    if (magnitude <= 1e-6) {
+      return { x: 0, y: -1 };
+    }
+
+    return { x: x / magnitude, y: y / magnitude };
+  };
+
+  const nose = poseLandmarks[0];
+  const leftMouth = poseLandmarks[9];
+  const rightMouth = poseLandmarks[10];
+  const leftShoulder = poseLandmarks[11];
+  const rightShoulder = poseLandmarks[12];
+  const leftElbow = poseLandmarks[13];
+  const rightElbow = poseLandmarks[14];
+  const leftWrist = poseLandmarks[15];
+  const rightWrist = poseLandmarks[16];
+  const leftHip = poseLandmarks[23];
+  const rightHip = poseLandmarks[24];
+  const leftKnee = poseLandmarks[25];
+  const rightKnee = poseLandmarks[26];
+  const leftAnkle = poseLandmarks[27];
+  const rightAnkle = poseLandmarks[28];
+
+  if (
+    !leftShoulder ||
+    !rightShoulder ||
+    !leftElbow ||
+    !rightElbow ||
+    !leftWrist ||
+    !rightWrist ||
+    !leftHip ||
+    !rightHip ||
+    !leftKnee ||
+    !rightKnee ||
+    !leftAnkle ||
+    !rightAnkle
+  ) {
+    return;
+  }
+
+  const leftShoulderPoint = projectPoint(leftShoulder);
+  const rightShoulderPoint = projectPoint(rightShoulder);
+  const leftElbowPoint = projectPoint(leftElbow);
+  const rightElbowPoint = projectPoint(rightElbow);
+  const leftWristPoint = projectPoint(leftWrist);
+  const rightWristPoint = projectPoint(rightWrist);
+  const leftHipPoint = projectPoint(leftHip);
+  const rightHipPoint = projectPoint(rightHip);
+  const leftKneePoint = projectPoint(leftKnee);
+  const rightKneePoint = projectPoint(rightKnee);
+  const leftAnklePoint = projectPoint(leftAnkle);
+  const rightAnklePoint = projectPoint(rightAnkle);
+
+  const shoulderMidPoint = {
+    x: (leftShoulderPoint.x + rightShoulderPoint.x) / 2,
+    y: (leftShoulderPoint.y + rightShoulderPoint.y) / 2,
+  };
+  const shoulderWidth = Math.hypot(
+    rightShoulderPoint.x - leftShoulderPoint.x,
+    rightShoulderPoint.y - leftShoulderPoint.y
+  );
+
+  const nosePoint = nose ? projectPoint(nose) : null;
+  const mouthMidPoint =
+    leftMouth && rightMouth
+      ? {
+          x: (projectPoint(leftMouth).x + projectPoint(rightMouth).x) / 2,
+          y: (projectPoint(leftMouth).y + projectPoint(rightMouth).y) / 2,
+        }
+      : null;
+
+  const headCenter = nosePoint ? nosePoint : {
+    x: shoulderMidPoint.x,
+    y: shoulderMidPoint.y - shoulderWidth * 0.52,
+  };
+  const headRadius = Math.max(14, Math.min(shoulderWidth * 0.34, rect.width * 0.11));
+  const bodyColor = "rgb(226, 232, 240)";
+  const limbWidth = Math.max(8, Math.min(shoulderWidth * 0.26, 22));
+  const outlineColor = "rgba(148, 163, 184, 0.98)";
+  const outlineWidth = Math.max(2, Math.min(limbWidth * 0.2, 5));
+
+  const getLandmarkDepth = (landmark: NormalizedLandmark) =>
+    Number.isFinite(landmark.z) ? landmark.z : 0;
+
+  const averageDepth = (values: number[]) =>
+    values.reduce((sum, value) => sum + value, 0) / values.length;
+
+  const leftArmDepth = averageDepth([
+    getLandmarkDepth(leftShoulder),
+    getLandmarkDepth(leftElbow),
+    getLandmarkDepth(leftWrist),
+  ]);
+  const rightArmDepth = averageDepth([
+    getLandmarkDepth(rightShoulder),
+    getLandmarkDepth(rightElbow),
+    getLandmarkDepth(rightWrist),
+  ]);
+  const backArmIsLeft = leftArmDepth > rightArmDepth;
+
+  const drawTorsoTrapezium = () => {
+    const torsoPadding = Math.max(10, limbWidth * 0.56);
+    const torsoCenter = {
+      x:
+        (leftShoulderPoint.x +
+          rightShoulderPoint.x +
+          rightHipPoint.x +
+          leftHipPoint.x) /
+        4,
+      y:
+        (leftShoulderPoint.y +
+          rightShoulderPoint.y +
+          rightHipPoint.y +
+          leftHipPoint.y) /
+        4,
+    };
+
+    const expandPoint = (point: { x: number; y: number }) => {
+      const direction = normalizeVector(
+        point.x - torsoCenter.x,
+        point.y - torsoCenter.y
+      );
+
+      return {
+        x: point.x + direction.x * torsoPadding,
+        y: point.y + direction.y * torsoPadding,
+      };
+    };
+
+    const expandedLeftShoulder = expandPoint(leftShoulderPoint);
+    const expandedRightShoulder = expandPoint(rightShoulderPoint);
+    const expandedRightHip = expandPoint(rightHipPoint);
+    const expandedLeftHip = expandPoint(leftHipPoint);
+
+    const corners = [
+      expandedLeftShoulder,
+      expandedRightShoulder,
+      expandedRightHip,
+      expandedLeftHip,
+    ];
+
+    const cornerRadius = Math.max(6, Math.min(torsoPadding * 0.9, limbWidth * 0.95));
+
+    const getRoundedCornerPoints = (
+      previousPoint: { x: number; y: number },
+      currentPoint: { x: number; y: number },
+      nextPoint: { x: number; y: number },
+      radius: number
+    ) => {
+      const vectorToPrevious = {
+        x: previousPoint.x - currentPoint.x,
+        y: previousPoint.y - currentPoint.y,
+      };
+      const vectorToNext = {
+        x: nextPoint.x - currentPoint.x,
+        y: nextPoint.y - currentPoint.y,
+      };
+
+      const previousLength = Math.hypot(vectorToPrevious.x, vectorToPrevious.y);
+      const nextLength = Math.hypot(vectorToNext.x, vectorToNext.y);
+
+      if (previousLength <= 1e-6 || nextLength <= 1e-6) {
+        return {
+          startPoint: currentPoint,
+          endPoint: currentPoint,
+        };
+      }
+
+      const effectiveRadius = Math.min(radius, previousLength * 0.45, nextLength * 0.45);
+      const previousDirection = {
+        x: vectorToPrevious.x / previousLength,
+        y: vectorToPrevious.y / previousLength,
+      };
+      const nextDirection = {
+        x: vectorToNext.x / nextLength,
+        y: vectorToNext.y / nextLength,
+      };
+
+      return {
+        startPoint: {
+          x: currentPoint.x + previousDirection.x * effectiveRadius,
+          y: currentPoint.y + previousDirection.y * effectiveRadius,
+        },
+        endPoint: {
+          x: currentPoint.x + nextDirection.x * effectiveRadius,
+          y: currentPoint.y + nextDirection.y * effectiveRadius,
+        },
+      };
+    };
+
+    const firstRounded = getRoundedCornerPoints(
+      corners[corners.length - 1],
+      corners[0],
+      corners[1],
+      cornerRadius
+    );
+
+    drawCtx.beginPath();
+    drawCtx.moveTo(firstRounded.endPoint.x, firstRounded.endPoint.y);
+
+    for (let index = 1; index <= corners.length; index += 1) {
+      const currentCorner = corners[index % corners.length];
+      const previousCorner = corners[(index - 1 + corners.length) % corners.length];
+      const nextCorner = corners[(index + 1) % corners.length];
+      const roundedPoints = getRoundedCornerPoints(
+        previousCorner,
+        currentCorner,
+        nextCorner,
+        cornerRadius
+      );
+
+      drawCtx.lineTo(roundedPoints.startPoint.x, roundedPoints.startPoint.y);
+      drawCtx.quadraticCurveTo(
+        currentCorner.x,
+        currentCorner.y,
+        roundedPoints.endPoint.x,
+        roundedPoints.endPoint.y
+      );
+    }
+
+    drawCtx.closePath();
+    drawCtx.fill();
+    drawCtx.lineWidth = outlineWidth;
+    drawCtx.strokeStyle = outlineColor;
+    drawCtx.stroke();
+    drawCtx.strokeStyle = bodyColor;
+  };
+
+  const drawSoftSegment = (
+    startPoint: { x: number; y: number },
+    controlPoint: { x: number; y: number },
+    endPoint: { x: number; y: number },
+    width: number
+  ) => {
+    drawCtx.beginPath();
+    drawCtx.moveTo(startPoint.x, startPoint.y);
+    drawCtx.quadraticCurveTo(controlPoint.x, controlPoint.y, endPoint.x, endPoint.y);
+    drawCtx.lineWidth = width + outlineWidth * 2;
+    drawCtx.strokeStyle = outlineColor;
+    drawCtx.stroke();
+
+    drawCtx.beginPath();
+    drawCtx.moveTo(startPoint.x, startPoint.y);
+    drawCtx.quadraticCurveTo(controlPoint.x, controlPoint.y, endPoint.x, endPoint.y);
+    drawCtx.lineWidth = width;
+    drawCtx.strokeStyle = bodyColor;
+    drawCtx.stroke();
+  };
+
+  drawCtx.save();
+  drawCtx.strokeStyle = bodyColor;
+  drawCtx.fillStyle = bodyColor;
+  drawCtx.lineCap = "round";
+  drawCtx.lineJoin = "round";
+
+  drawTorsoTrapezium();
+
+  const drawLeftArm = () => {
+    drawSoftSegment(
+      leftShoulderPoint,
+      leftElbowPoint,
+      leftWristPoint,
+      limbWidth
+    );
+  };
+
+  const drawRightArm = () => {
+    drawSoftSegment(
+      rightShoulderPoint,
+      rightElbowPoint,
+      rightWristPoint,
+      limbWidth
+    );
+  };
+
+  if (backArmIsLeft) {
+    drawLeftArm();
+  } else {
+    drawRightArm();
+  }
+
+  if (backArmIsLeft) {
+    drawRightArm();
+  } else {
+    drawLeftArm();
+  }
+
+  drawSoftSegment(
+    leftHipPoint,
+    leftKneePoint,
+    leftAnklePoint,
+    limbWidth * 1.05
+  );
+  drawSoftSegment(
+    rightHipPoint,
+    rightKneePoint,
+    rightAnklePoint,
+    limbWidth * 1.05
+  );
+
+  drawCtx.beginPath();
+  drawCtx.arc(headCenter.x, headCenter.y, headRadius, 0, Math.PI * 2);
+  drawCtx.fill();
+  drawCtx.lineWidth = outlineWidth;
+  drawCtx.strokeStyle = outlineColor;
+  drawCtx.stroke();
+  drawCtx.strokeStyle = bodyColor;
+
+  if (nosePoint && mouthMidPoint) {
+    const directionVector = {
+      x: mouthMidPoint.x - nosePoint.x,
+      y: mouthMidPoint.y - nosePoint.y,
+    };
+    const directionLength = Math.hypot(directionVector.x, directionVector.y);
+    const normalizedDirection = directionLength > 1e-6
+      ? {
+          x: directionVector.x / directionLength,
+          y: directionVector.y / directionLength,
+        }
+      : { x: 0, y: 1 };
+
+    const originToCenter = {
+      x: nosePoint.x - headCenter.x,
+      y: nosePoint.y - headCenter.y,
+    };
+    const projection =
+      originToCenter.x * normalizedDirection.x +
+      originToCenter.y * normalizedDirection.y;
+    const centerDistanceSquared =
+      originToCenter.x * originToCenter.x + originToCenter.y * originToCenter.y;
+    const discriminant =
+      projection * projection - (centerDistanceSquared - headRadius * headRadius);
+
+    if (discriminant >= 0) {
+      const root = Math.sqrt(discriminant);
+      const startT = -projection - root;
+      const endT = -projection + root;
+
+      const startPoint = {
+        x: nosePoint.x + normalizedDirection.x * startT,
+        y: nosePoint.y + normalizedDirection.y * startT,
+      };
+      const endPoint = {
+        x: nosePoint.x + normalizedDirection.x * endT,
+        y: nosePoint.y + normalizedDirection.y * endT,
+      };
+
+      drawCtx.beginPath();
+      drawCtx.moveTo(startPoint.x, startPoint.y);
+      drawCtx.lineTo(endPoint.x, endPoint.y);
+      drawCtx.lineWidth = Math.max(2, headRadius * 0.14);
+      drawCtx.strokeStyle = "rgba(59, 130, 246, 0.98)";
+      drawCtx.stroke();
+      drawCtx.strokeStyle = bodyColor;
+    }
+  }
+
+  drawCtx.restore();
+
+  canvasCtx.save();
+  canvasCtx.globalAlpha = overlayAlpha;
+  canvasCtx.drawImage(overlayCanvas, 0, 0);
+  canvasCtx.restore();
+};
+
 const drawGuidanceBoneInRect = (
   canvasCtx: CanvasRenderingContext2D,
   rect: ProjectionRect,
@@ -209,14 +597,14 @@ const drawGuidanceBoneInRect = (
   const targetEndPoint = projectPoint(targetEnd);
 
   canvasCtx.save();
-  canvasCtx.strokeStyle = "rgba(251, 146, 60, 0.95)";
+  canvasCtx.strokeStyle = "rgba(74, 222, 128, 0.95)";
   canvasCtx.lineWidth = 4;
   canvasCtx.beginPath();
   canvasCtx.moveTo(targetStartPoint.x, targetStartPoint.y);
   canvasCtx.lineTo(targetEndPoint.x, targetEndPoint.y);
   canvasCtx.stroke();
 
-  canvasCtx.fillStyle = "rgba(251, 146, 60, 0.95)";
+  canvasCtx.fillStyle = "rgba(74, 222, 128, 0.95)";
   canvasCtx.beginPath();
   canvasCtx.arc(targetEndPoint.x, targetEndPoint.y, 5, 0, Math.PI * 2);
   canvasCtx.fill();
@@ -275,6 +663,9 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
     null
   );
   const [poseMatchScore, setPoseMatchScore] = useState<number | null>(null);
+  const [relativeDistanceGuidance, setRelativeDistanceGuidance] =
+    useState<RelativeDistanceGuidance | null>(null);
+  const [showModelSkeleton, setShowModelSkeleton] = useState(true);
 
   const safeFrameSize = useMemo(
     () => ({
@@ -337,6 +728,7 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
   useEffect(() => {
     smoothedScaleRatioRef.current = null;
     lastRelativeDistanceGuidanceRef.current = null;
+    setRelativeDistanceGuidance(null);
     const callback = relativeDistanceCallbackRef.current;
     if (callback) {
       callback(null);
@@ -463,12 +855,15 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
 
     if (showTargetPoseOverlay && fittedTargetPoseLandmarks && fittedTargetPoseLandmarks.length > 0) {
       const mobileGuideRect = getCenteredMobileGuideRect(canvas.width, canvas.height);
-      drawPoseLandmarkSetInRect(fittedTargetPoseLandmarks, canvasCtx, mobileGuideRect, {
-        connectorColor: "rgba(56, 189, 248, 0.95)",
-        pointColor: "rgba(125, 211, 252, 0.95)",
-        lineWidth: 2,
-        radius: 3,
-      });
+      if (showModelSkeleton) {
+        drawPoseLandmarkSetInRect(fittedTargetPoseLandmarks, canvasCtx, mobileGuideRect, {
+          connectorColor: "rgba(56, 189, 248, 0.95)",
+          pointColor: "rgba(125, 211, 252, 0.95)",
+          lineWidth: 2,
+          radius: 3,
+        });
+      }
+      drawSoftBodyOverlayInRect(fittedTargetPoseLandmarks, canvasCtx, mobileGuideRect);
 
       if (userFrameLandmarks && normalizedGuidance.highlightedBones.length > 0) {
         for (const highlightedBone of normalizedGuidance.highlightedBones) {
@@ -516,6 +911,7 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
         if (relativeDistance) {
           smoothedScaleRatioRef.current = relativeDistance.smoothedRatio;
           lastRelativeDistanceGuidanceRef.current = relativeDistance.guidance;
+          setRelativeDistanceGuidance(relativeDistance.guidance);
           const guidanceCallback = relativeDistanceCallbackRef.current;
           if (guidanceCallback) {
             guidanceCallback(relativeDistance.guidance);
@@ -523,6 +919,7 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
         } else if (lastRelativeDistanceGuidanceRef.current !== null) {
           smoothedScaleRatioRef.current = null;
           lastRelativeDistanceGuidanceRef.current = null;
+          setRelativeDistanceGuidance(null);
           const guidanceCallback = relativeDistanceCallbackRef.current;
           if (guidanceCallback) {
             guidanceCallback(null);
@@ -558,6 +955,7 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
       if (lastRelativeDistanceGuidanceRef.current !== null) {
         smoothedScaleRatioRef.current = null;
         lastRelativeDistanceGuidanceRef.current = null;
+        setRelativeDistanceGuidance(null);
         const guidanceCallback = relativeDistanceCallbackRef.current;
         if (guidanceCallback) {
           guidanceCallback(null);
@@ -582,6 +980,7 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
     scheduleNextFrame();
   }, [
     showTargetPoseOverlay,
+    showModelSkeleton,
     fittedTargetPoseLandmarks,
     targetPoseWorldLandmarks,
     poseMatchScore,
@@ -713,6 +1112,10 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
         {showTargetPoseOverlay && fittedTargetPoseLandmarks ? (
           <div style={styles.poseMatchBadge}>
             Match: {poseMatchScore !== null ? `${poseMatchScore}%` : "--"}
+            {"  •  "}
+            Distance: {relativeDistanceGuidance
+              ? `${relativeDistanceGuidance.category} (${relativeDistanceGuidance.scaleRatio.toFixed(2)}x)`
+              : "--"}
           </div>
         ) : null}
 
@@ -755,6 +1158,15 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
               </p>
             ) : null}
             <div style={styles.controlsBar}>
+              {showTargetPoseOverlay ? (
+                <button
+                  type="button"
+                  onClick={() => setShowModelSkeleton((previous) => !previous)}
+                  style={styles.controlButton}
+                >
+                  {showModelSkeleton ? "Hide Skeleton" : "Show Skeleton"}
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={toggleCameraFacingMode}

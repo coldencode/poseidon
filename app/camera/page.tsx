@@ -57,7 +57,6 @@ function CameraPageContent() {
   >(undefined);
   const [targetPoseImage, setTargetPoseImage] = useState<string | null>(null);
   const [targetPoseLabel, setTargetPoseLabel] = useState<string | null>(null);
-  const [poseMatchScore, setPoseMatchScore] = useState<number | null>(null);
   const [relativeDistanceGuidance, setRelativeDistanceGuidance] =
     useState<RelativeDistanceGuidance | null>(null);
 
@@ -174,13 +173,10 @@ function CameraPageContent() {
               height={52}
               className="h-13 w-10 rounded-md border border-slate-200 object-cover"
             />
-            <p className="text-xs text-slate-600">
-              Match your live pose to the overlaid skeleton guide.
-            </p>
-            <div className="ml-auto flex flex-col items-end gap-1">
-              <span className="rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
-                Score: {poseMatchScore !== null ? `${poseMatchScore}%` : "--"}
-              </span>
+            <div className="ml-auto flex items-center gap-2">
+              <p className="text-xs text-slate-600">
+                Match your live pose to the overlaid skeleton guide.
+              </p>
               <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">
                 Distance: {relativeDistanceGuidance
                   ? `${relativeDistanceGuidance.category} (${relativeDistanceGuidance.scaleRatio.toFixed(2)}x)`
@@ -199,7 +195,6 @@ function CameraPageContent() {
             targetPoseLandmarks={targetPoseLandmarks}
             targetPoseWorldLandmarks={targetPoseWorldLandmarks}
             showTargetPoseOverlay
-            onPoseMatchScoreUpdate={setPoseMatchScore}
             onRelativeDistanceGuidanceUpdate={setRelativeDistanceGuidance}
           />
         </div>
