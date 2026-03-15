@@ -5,16 +5,16 @@ import pose2 from "../../public/pose-library/pose2.json";
 
 import photo1 from "../../public/pose-library/pose1.png";
 import photo2 from "../../public/pose-library/pose2.png";
-
 export default function ResultsPage() {
+
   return (
     <>
-    <Results
-      pose={pose2}
-      referencePose={pose1}
-      photo={photo2}
-      referencePhoto={photo1}
-    />
+      <Results
+        pose={pose2}
+        referencePose={pose1}
+        photo={photo2}
+        referencePhoto={photo1}
+      />
     </>
   );
 }

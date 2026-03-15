@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { Point3D, Connection } from "../types";
 import {
-  createArrowBetweenPoints,
   createDifferenceArrows,
   MEDIAPIPE_CONNECTIONS,
 } from "../util";
@@ -27,7 +26,6 @@ function buildSkeleton(pts: Point3D[], color: number, offsetX: number) {
     opacity: 0.75,
   });
 
-  // Head sphere at landmark 0 (nose), sized to feel like a real head
   const headPos = new THREE.Vector3((pts[0].x + offsetX), -pts[0].y, -pts[0].z);
   const headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 16), mat);
   headMesh.position.copy(headPos);
@@ -46,7 +44,6 @@ function buildSkeleton(pts: Point3D[], color: number, offsetX: number) {
     const len = dir.length();
     const mid = new THREE.Vector3().addVectors(pA, pB).multiplyScalar(0.5);
 
-    // Bone cylinder
     const bone = new THREE.Mesh(
       new THREE.CylinderGeometry(radius, radius, len, 8),
       boneMat,
@@ -58,7 +55,6 @@ function buildSkeleton(pts: Point3D[], color: number, offsetX: number) {
     );
     group.add(bone);
 
-    // Smooth caps at each joint
     [pA, pB].forEach((p) => {
       const cap = new THREE.Mesh(
         new THREE.SphereGeometry(radius, 5, 5),
@@ -71,6 +67,7 @@ function buildSkeleton(pts: Point3D[], color: number, offsetX: number) {
 
   return group;
 }
+
 export default function SkeletonViewer({
   pose,
   referencePose,
@@ -101,15 +98,18 @@ export default function SkeletonViewer({
     renderer.setSize(w, h);
 
     const scene = new THREE.Scene();
+    // Light background color
+    scene.background = new THREE.Color(0xf8fafc);
+
     const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 100);
     camera.position.set(0, 0, 3.5);
 
-    scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-    const dir = new THREE.DirectionalLight(0xffffff, 0.6);
+    scene.add(new THREE.AmbientLight(0xffffff, 1.0));
+    const dir = new THREE.DirectionalLight(0xffffff, 0.8);
     dir.position.set(1, 2, 3);
     scene.add(dir);
 
-    // After scene setup, before adding pivot
+    // Dot grid — dark dots on light background
     const dotGeometry = new THREE.BufferGeometry();
     const positions: number[] = [];
     const spacing = 0.3;
@@ -126,29 +126,23 @@ export default function SkeletonViewer({
       new THREE.Float32BufferAttribute(positions, 3),
     );
     const dotMaterial = new THREE.PointsMaterial({
-      color: "#ffffff",
+      color: "#94a3b8",
       sizeAttenuation: false,
       size: 2,
-      opacity: 0.2,
+      opacity: 0.4,
       transparent: true,
     });
     scene.add(new THREE.Points(dotGeometry, dotMaterial));
 
     const pivot = new THREE.Group();
 
-    console.log(showPose);
-    const poseSkeleton = buildSkeleton(pose, 0x4a9eff, 0);
-    const refSkeleton = buildSkeleton(referencePose, 0xff7b4a, 0);
+    const poseSkeleton = buildSkeleton(pose, 0x2563eb, 0);
+    const refSkeleton = buildSkeleton(referencePose, 0xea580c, 0);
     if (showPose) pivot.add(poseSkeleton);
     if (showReference) pivot.add(refSkeleton);
     if (!showPose) pivot.remove(poseSkeleton);
     if (!showReference) pivot.remove(refSkeleton);
-    // Get world positions of both skeleton roots (or any specific joint)
 
-    // const arrow = createArrowBetweenPoints(a1, b1);
-    // pivot.add(createArrowBetweenPoints(pose[15], referencePose[15]));
-
-    // pivot.add(arrow);
     scene.add(pivot);
 
     stateRef.current = {
@@ -160,14 +154,14 @@ export default function SkeletonViewer({
       lastX: 0,
       lastY: 0,
     };
-    const arrows = createDifferenceArrows(pose, referencePose, 0xffffff);
+
+    const arrows = createDifferenceArrows(pose, referencePose, 0x475569);
     if (showArrows) {
       pivot.add(arrows);
     } else {
-      pivot.remove(arrows)
+      pivot.remove(arrows);
     }
 
-    /** Viewport dragging */
     const getXY = (e: MouseEvent | TouchEvent): [number, number] =>
       "touches" in e
         ? [e.touches[0].clientX, e.touches[0].clientY]
@@ -263,14 +257,14 @@ export default function SkeletonViewer({
           }}
         >
           {[
-            ["#4a9eff", "Your Pose", showPose, () => setShowPose((p) => !p)],
+            ["#2563eb", "Your Pose", showPose, () => setShowPose((p) => !p)],
             [
-              "#ff7b4a",
+              "#ea580c",
               "Reference Pose",
               showReference,
               () => setShowReference((p) => !p),
             ],
-            ["#ffffff", "Arrows", showArrows, () => setShowArrows((p) => !p)],
+            ["#475569", "Arrows", showArrows, () => setShowArrows((p) => !p)],
           ].map(([color, label, visible, toggle]) => (
             <div
               key={label as string}
@@ -279,12 +273,12 @@ export default function SkeletonViewer({
                 display: "flex",
                 alignItems: "center",
                 gap: 6,
-                background: "rgba(255,255,255,0.07)",
-                border: `0.5px solid ${visible ? (color as string) : "rgba(255,255,255,0.15)"}`,
+                background: "rgba(0,0,0,0.05)",
+                border: `0.5px solid ${visible ? (color as string) : "rgba(0,0,0,0.15)"}`,
                 borderRadius: 8,
                 padding: "6px 10px",
                 fontSize: 13,
-                color: visible ? "#fff" : "rgba(255,255,255,0.4)",
+                color: visible ? "#1e293b" : "rgba(0,0,0,0.35)",
                 cursor: "pointer",
                 userSelect: "none",
                 transition: "all 0.15s ease",
@@ -309,12 +303,12 @@ export default function SkeletonViewer({
           <button
             onClick={() => setAutoRotate((v) => !v)}
             style={{
-              background: "rgba(255,255,255,0.07)",
-              border: "0.5px solid rgba(255,255,255,0.2)",
+              background: "rgba(0,0,0,0.05)",
+              border: "0.5px solid rgba(0,0,0,0.15)",
               borderRadius: 8,
               padding: "6px 12px",
               fontSize: 13,
-              color: "#fff",
+              color: "#1e293b",
               cursor: "pointer",
             }}
           >
@@ -329,7 +323,7 @@ export default function SkeletonViewer({
             bottom: 12,
             left: 12,
             fontSize: 12,
-            color: "rgba(255,255,255,0.35)",
+            color: "rgba(0,0,0,0.35)",
           }}
         >
           Drag to rotate · Scroll to zoom

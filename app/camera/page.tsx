@@ -6,8 +6,8 @@ import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import PoseCamera from "@/src/components/pose-camera/PoseCamera";
 import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
+import { PHOTO_STORAGE_KEY } from "../types";
 
-const PHOTO_STORAGE_KEY = "poseidon.captures";
 const MAX_CAPTURE_HISTORY = 12;
 
 type PoseLibraryJson = {
