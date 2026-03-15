@@ -130,7 +130,8 @@ export default function Results({
   }, [currentUserImage]);
 
   const handleTryAgain = () => {
-    const targetQuery = target ? `?pose=${encodeURIComponent(target)}` : "";
+    const poseId = selectedPoseId ?? target ?? undefined;
+    const targetQuery = poseId ? `?pose=${encodeURIComponent(poseId)}` : "";
     router.push(`/camera${targetQuery}`);
   };
 
