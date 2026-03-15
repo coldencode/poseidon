@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { Point3D, Connection } from "../types";
@@ -13,7 +14,6 @@ export interface SceneState {
   lastY: number;
   autoRotate: boolean;
 }
-
 function buildSkeleton(pts: Point3D[], color: number, offsetX: number) {
   const group = new THREE.Group();
 
@@ -24,7 +24,9 @@ function buildSkeleton(pts: Point3D[], color: number, offsetX: number) {
     transparent: true,
     opacity: 0.75,
   });
-
+  if (!pts || pts.length === 0 || !pts[0]) {
+    return group;
+  }
   const head = pts[0];
   if (
     !head ||
@@ -38,10 +40,8 @@ function buildSkeleton(pts: Point3D[], color: number, offsetX: number) {
   const headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 16), mat);
   headMesh.position.copy(headPos);
   group.add(headMesh);
-
   MEDIAPIPE_CONNECTIONS.forEach(({ start, end, radius }) => {
     if (start >= pts.length || end >= pts.length) return;
-
     const pA = new THREE.Vector3(
       pts[start].x + offsetX,
       -pts[start].y,
@@ -55,7 +55,7 @@ function buildSkeleton(pts: Point3D[], color: number, offsetX: number) {
     const dir = new THREE.Vector3().subVectors(pB, pA);
     const len = dir.length();
     const mid = new THREE.Vector3().addVectors(pA, pB).multiplyScalar(0.5);
-
+    // Bone cylinder
     const bone = new THREE.Mesh(
       new THREE.CylinderGeometry(radius, radius, len, 8),
       boneMat,
@@ -66,7 +66,7 @@ function buildSkeleton(pts: Point3D[], color: number, offsetX: number) {
       dir.clone().normalize(),
     );
     group.add(bone);
-
+    // Smooth caps at each joint
     [pA, pB].forEach((p) => {
       const cap = new THREE.Mesh(
         new THREE.SphereGeometry(radius, 5, 5),
@@ -76,7 +76,6 @@ function buildSkeleton(pts: Point3D[], color: number, offsetX: number) {
       group.add(cap);
     });
   });
-
   return group;
 }
 
@@ -93,7 +92,6 @@ export default function SkeletonViewer({
   const [showPose, setShowPose] = useState<boolean>(true);
   const [showReference, setShowReference] = useState<boolean>(true);
   const [showArrows, setShowArrows] = useState<boolean>(false);
-
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -108,16 +106,14 @@ export default function SkeletonViewer({
     const w = container.clientWidth;
     const h = container.clientHeight;
     renderer.setSize(w, h);
-
     const scene = new THREE.Scene();
     // Light background color
     scene.background = new THREE.Color(0xf8fafc);
 
     const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 100);
     camera.position.set(0, 0, 3.5);
-
-    scene.add(new THREE.AmbientLight(0xffffff, 1.0));
-    const dir = new THREE.DirectionalLight(0xffffff, 0.8);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+    const dir = new THREE.DirectionalLight(0xffffff, 0.6);
     dir.position.set(1, 2, 3);
     scene.add(dir);
 
@@ -126,13 +122,11 @@ export default function SkeletonViewer({
     const positions: number[] = [];
     const spacing = 0.3;
     const gridSize = 10;
-
     for (let x = -gridSize; x <= gridSize; x++) {
       for (let y = -gridSize; y <= gridSize; y++) {
         positions.push(x * spacing, y * spacing, -2);
       }
     }
-
     dotGeometry.setAttribute(
       "position",
       new THREE.Float32BufferAttribute(positions, 3),
@@ -145,7 +139,6 @@ export default function SkeletonViewer({
       transparent: true,
     });
     scene.add(new THREE.Points(dotGeometry, dotMaterial));
-
     const pivot = new THREE.Group();
 
     if (referencePose && pose) {
@@ -165,7 +158,6 @@ export default function SkeletonViewer({
     }
 
     scene.add(pivot);
-
     stateRef.current = {
       renderer,
       scene,
@@ -180,17 +172,14 @@ export default function SkeletonViewer({
       "touches" in e
         ? [e.touches[0].clientX, e.touches[0].clientY]
         : [e.clientX, e.clientY];
-
     const onDown = (e: MouseEvent | TouchEvent) => {
       const s = stateRef.current;
       s.isDragging = true;
       [s.lastX, s.lastY] = getXY(e);
     };
-
     const onUp = () => {
       stateRef.current.isDragging = false;
     };
-
     const onMove = (e: MouseEvent | TouchEvent) => {
       const s = stateRef.current;
       if (!s.isDragging || !s.pivot) return;
@@ -202,7 +191,6 @@ export default function SkeletonViewer({
       );
       [s.lastX, s.lastY] = [x, y];
     };
-
     const onWheel = (e: WheelEvent) => {
       if (!stateRef.current.camera) return;
       stateRef.current.camera.position.z = Math.max(
@@ -211,7 +199,6 @@ export default function SkeletonViewer({
       );
       e.preventDefault();
     };
-
     canvas.addEventListener("mousedown", onDown);
     canvas.addEventListener("mouseup", onUp);
     canvas.addEventListener("mouseleave", onUp);
@@ -220,7 +207,6 @@ export default function SkeletonViewer({
     canvas.addEventListener("touchend", onUp);
     canvas.addEventListener("touchmove", onMove);
     canvas.addEventListener("wheel", onWheel, { passive: false });
-
     let raf: number;
     const animate = () => {
       raf = requestAnimationFrame(animate);
@@ -236,7 +222,6 @@ export default function SkeletonViewer({
       renderer.render(scene, camera);
     };
     animate();
-
     return () => {
       cancelAnimationFrame(raf);
       renderer.dispose();
@@ -271,12 +256,10 @@ export default function SkeletonViewer({
   useEffect(() => {
     stateRef.current.autoRotate = autoRotate;
   }, [autoRotate]);
-
   return (
     <div className="w-full h-full">
       <div className="relative w-full h-full overflow-hidden">
         <canvas ref={canvasRef} className="block" />
-
         {/* Legend */}
         <div
           style={{
@@ -328,7 +311,6 @@ export default function SkeletonViewer({
             </div>
           ))}
         </div>
-
         {/* Controls */}
         <div style={{ position: "absolute", bottom: 12, right: 12 }}>
           <button
@@ -346,7 +328,6 @@ export default function SkeletonViewer({
             {autoRotate ? "⏸ Pause" : "▶ Rotate"}
           </button>
         </div>
-
         {/* Hint */}
         <div
           style={{
