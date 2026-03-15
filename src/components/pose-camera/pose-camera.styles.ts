@@ -52,7 +52,6 @@ export const styles: Record<string, React.CSSProperties> = {
     height: "100%",
     objectFit: "cover",
     display: "block",
-    transform: "scaleX(-1)",
   },
   canvas: {
     position: "absolute",
@@ -60,7 +59,6 @@ export const styles: Record<string, React.CSSProperties> = {
     left: 0,
     width: "100%",
     height: "100%",
-    transform: "scaleX(-1)",
   },
   flashOverlay: {
     position: "absolute",

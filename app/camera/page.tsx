@@ -1,13 +1,12 @@
 "use client";
-
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import LivePose from "@/src/components/live-pose/LivePose";
 import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
 import type { PoseSnapshot } from "@/app/types";
-
+import type { RelativeDistanceGuidance, PoseSnapshot } from "@/app/types";
 const PHOTO_STORAGE_KEY = "poseidon.captures";
 const MAX_CAPTURE_HISTORY = 12;
 const POSE_REDUCTION_KEEP = [0, 7, 8, 11, 12, 13, 14, 15, 16, 19, 20, 23, 24, 25, 26, 27, 28, 31, 32] as const;
@@ -39,36 +38,52 @@ const toReducedSkeletonJson = (landmarks: NormalizedLandmark[] | undefined): str
 function CameraPageContent() {
   const searchParams = useSearchParams();
   const selectedPoseId = searchParams.get("pose");
-
   const [isMobileViewport, setIsMobileViewport] = useState(() => {
     if (typeof window === "undefined") {
       return true;
     }
     return window.matchMedia("(max-width: 768px)").matches;
   });
-
-  const [capturedPhotos, setCapturedPhotos] = useState<string[]>(() => {
+  type CapturedItem = {
+    id: string;
+    photo: string;
+    snapshot?: PoseSnapshot;
+    targetPoseId?: string | null;
+    targetPoseImage?: string | null;
+  };
+  const [capturedItems, setCapturedItems] = useState<CapturedItem[]>(() => {
     if (typeof window === "undefined") {
       return [];
     }
-
-    const savedPhotos = localStorage.getItem(PHOTO_STORAGE_KEY);
-    if (!savedPhotos) {
+    const saved = localStorage.getItem(PHOTO_STORAGE_KEY);
+    if (!saved) {
       return [];
     }
-
     try {
-      const parsed = JSON.parse(savedPhotos);
+      const parsed = JSON.parse(saved);
       if (Array.isArray(parsed)) {
-        return parsed.filter((item) => typeof item === "string");
+        return parsed
+          .filter((item) => item && typeof item === "object" && "photo" in item)
+          .map((item) => ({
+            id: typeof item.id === "string" ? item.id : `${Date.now()}-${Math.random()}`,
+            photo: String(item.photo),
+            snapshot: item.snapshot,
+            targetPoseId: item.targetPoseId ?? null,
+            targetPoseImage: item.targetPoseImage ?? null,
+          }));
       }
-    } catch {
+    } catch (err) {
       localStorage.removeItem(PHOTO_STORAGE_KEY);
     }
-
     return [];
   });
+  const [selectedCaptureIndex, setSelectedCaptureIndex] = useState<number | null>(null);
+  const [showResultConfirm, setShowResultConfirm] = useState(false);
+  const [latestSnapshot, setLatestSnapshot] = useState<PoseSnapshot | null>(null);
   const [targetPoseLandmarks, setTargetPoseLandmarks] = useState<
+    NormalizedLandmark[] | undefined
+  >(undefined);
+  const [targetPoseWorldLandmarks, setTargetPoseWorldLandmarks] = useState<
     NormalizedLandmark[] | undefined
   >(undefined);
   const [targetPoseImage, setTargetPoseImage] = useState<string | null>(null);
@@ -90,31 +105,42 @@ function CameraPageContent() {
   const handlePhotoCallback = useCallback((_: PoseSnapshot | null, score: number | null) => {
     setPoseMatchScore(score);
   }, []);
-
+  const router = useRouter();
+  const handleGoToResults = () => {
+    if (selectedCaptureIndex === null) {
+      return;
+    }
+    const selected = capturedItems[selectedCaptureIndex];
+    localStorage.setItem("poseidon.lastComparison", JSON.stringify(selected));
+    const targetId = selected.targetPoseId || selectedPoseId;
+    setShowResultConfirm(false);
+    if (targetId) {
+      router.push(`/results?target=${encodeURIComponent(targetId)}`);
+    } else {
+      router.push("/results");
+    }
+  };
   useEffect(() => {
     const mobileQuery = window.matchMedia("(max-width: 768px)");
     const handleViewportChange = (event: MediaQueryListEvent) => {
       setIsMobileViewport(event.matches);
     };
-
     mobileQuery.addEventListener("change", handleViewportChange);
     return () => {
       mobileQuery.removeEventListener("change", handleViewportChange);
     };
   }, []);
-
   useEffect(() => {
     let isActive = true;
-
     const loadTargetPose = async () => {
       if (!selectedPoseId) {
         setTargetPoseLandmarks(undefined);
+        setTargetPoseWorldLandmarks(undefined);
         setTargetPoseImage(null);
         setTargetPoseLabel(null);
         setChosenSkeletonForLlm("");
         return;
       }
-
       try {
         const response = await fetch(`/pose-library/${selectedPoseId}.json`);
         if (!response.ok) {
@@ -125,16 +151,16 @@ function CameraPageContent() {
         console.log(parsed)
         const firstLandmarks = Array.isArray(parsed.landmarks)
           ? parsed.landmarks[0]
-          : Array.isArray(parsed.worldLandmarks)
-            ? parsed.worldLandmarks[0]
-            : undefined;
-
+          : undefined;
+        const firstWorldLandmarks = Array.isArray(parsed.worldLandmarks)
+          ? parsed.worldLandmarks[0]
+          : undefined;
         if (!isActive) {
           return;
         }
-
         setTargetPoseLandmarks(firstLandmarks);
         setChosenSkeletonForLlm(toReducedSkeletonJson(firstLandmarks));
+        setTargetPoseWorldLandmarks(firstWorldLandmarks);
         setTargetPoseImage(
           parsed.pose ? `/pose-library/${parsed.pose}` : `/pose-library/${selectedPoseId}.png`
         );
@@ -144,19 +170,17 @@ function CameraPageContent() {
           return;
         }
         setTargetPoseLandmarks(undefined);
+        setTargetPoseWorldLandmarks(undefined);
         setTargetPoseImage(null);
         setTargetPoseLabel(null);
         setChosenSkeletonForLlm("");
       }
     };
-
     loadTargetPose();
-
     return () => {
       isActive = false;
     };
   }, [selectedPoseId]);
-
   const frameSize = useMemo(
     () => ({
       width: isMobileViewport ? 9 : 16,
@@ -164,7 +188,6 @@ function CameraPageContent() {
     }),
     [isMobileViewport]
   );
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-sky-50 via-white to-indigo-50 text-slate-900">
       <main className="mx-auto w-full max-w-6xl px-5 py-8 sm:px-8">
@@ -182,7 +205,6 @@ function CameraPageContent() {
             Change
           </Link>
         </div>
-
         {targetPoseImage ? (
           <div className="mb-3 flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-2">
             <Image
@@ -195,17 +217,24 @@ function CameraPageContent() {
             <p className="text-xs text-slate-600">
               Match your live pose to the overlaid skeleton guide.
             </p>
-            <span className="ml-auto rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
-              Score: {poseMatchScore !== null ? `${poseMatchScore}%` : "--"}
-            </span>
+            <div className="ml-auto flex flex-col items-end gap-1">
+              <span className="rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
+                Score: {poseMatchScore !== null ? `${poseMatchScore}%` : "--"}
+              </span>
+              <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">
+                Distance: {relativeDistanceGuidance
+                  ? `${relativeDistanceGuidance.category} (${relativeDistanceGuidance.scaleRatio.toFixed(2)}x)`
+                  : "--"}
+              </span>
+            </div>
           </div>
         ) : null}
-
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 p-2">
           <LivePose
             frameSize={frameSize}
             showPoseStatus
             showControls
+            onSkeletonUpdate={(snapshot) => setLatestSnapshot(snapshot)}
             onPhotoCaptured={handlePhotoCaptured}
             targetPoseLandmarks={targetPoseLandmarks}
             chosenSkeletonForLlm={chosenSkeletonForLlm}
@@ -214,40 +243,83 @@ function CameraPageContent() {
             onPhotoCallback={handlePhotoCallback}
           />
         </div>
-
         <div className="mt-5">
           <div className="mb-2 flex items-center justify-between">
             <p className="text-xs font-medium tracking-wide text-slate-500 uppercase">
               Client-side captures
             </p>
-            <span className="text-xs text-slate-500">{capturedPhotos.length}</span>
+            <span className="text-xs text-slate-500">{capturedItems.length}</span>
           </div>
-
           <div className="flex gap-2 overflow-x-auto pb-1">
-            {capturedPhotos.length === 0 ? (
+            {capturedItems.length === 0 ? (
               <div className="w-full rounded-xl border border-dashed border-slate-300 bg-white px-3 py-2 text-xs text-slate-500">
                 No photos yet. Tap capture to save locally in this browser.
               </div>
             ) : (
-              capturedPhotos.map((photo, index) => (
-                <Image
-                  key={`${photo.slice(0, 24)}-${index}`}
-                  src={photo}
-                  alt={`Captured pose ${index + 1}`}
-                  width={48}
-                  height={64}
-                  unoptimized
-                  className="h-16 w-12 rounded-lg border border-slate-200 bg-white object-cover shadow-sm"
-                />
+              capturedItems.map((item, index) => (
+                <div key={item.id} className="relative">
+                  <button
+                    onClick={() => handleSelectCapture(index)}
+                    className="rounded-lg border border-slate-200 bg-white p-0 shadow-sm transition hover:scale-[1.02]"
+                    type="button"
+                    aria-label={`Select captured pose ${index + 1} for comparison`}
+                  >
+                    <Image
+                      src={item.photo}
+                      alt={`Captured pose ${index + 1}`}
+                      width={48}
+                      height={64}
+                      unoptimized
+                      className="h-16 w-12 rounded-lg object-cover"
+                    />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteCapture(item.id);
+                    }}
+                    className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-slate-900 text-[10px] font-black text-white shadow-lg hover:bg-red-600"
+                    aria-label={`Delete captured pose ${index + 1}`}
+                    title="Delete this capture"
+                  >
+                    ×
+                  </button>
+                </div>
               ))
             )}
           </div>
         </div>
+        {showResultConfirm && selectedCaptureIndex !== null && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+            <div className="w-full max-w-sm rounded-2xl bg-white p-4 shadow-xl">
+              <h2 className="text-base font-semibold">Go to Results</h2>
+              <p className="mt-2 text-sm text-slate-600">
+                You selected capture #{selectedCaptureIndex + 1}. Compare this photo with your target pose?
+              </p>
+              <div className="mt-4 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowResultConfirm(false)}
+                  className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleGoToResults}
+                  className="flex-1 rounded-lg bg-sky-600 px-3 py-2 text-sm font-semibold text-white hover:bg-sky-500"
+                >
+                  Yes, show results
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
 }
-
 export default function CameraPage() {
   return (
     <Suspense

@@ -5,20 +5,27 @@ import SkeletonViewer from "./skeletonViewer";
 
 import { PoseLandmarker } from "@mediapipe/tasks-vision";
 import { Pose } from "../types";
-import Image, { StaticImageData } from "next/image";
 
 export default function Results({
   pose,
   referencePose,
   photo,
   referencePhoto,
+  target,
 }: {
   pose: Pose;
   referencePose: Pose;
-  photo: StaticImageData;
-  referencePhoto: StaticImageData;
+  photo: string;
+  referencePhoto: string;
+  target?: string;
 }) {
   const router = useRouter();
+
+  const handleTryAgain = () => {
+    const targetQuery = target ? `?pose=${encodeURIComponent(target)}` : "";
+    router.push(`/camera${targetQuery}`);
+  };
+
   return (
     <div
       className="min-h-screen min-h-[100dvh] bg-slate-950
@@ -45,7 +52,7 @@ export default function Results({
               className="rounded-lg border border-slate-700
                                bg-slate-900 p-2 text-sm text-slate-400
                                hover:border-slate-500 transition font-semibold"
-              onClick={() => router.push("/pose")}
+              onClick={handleTryAgain}
             >
               Try Again
             </button>
@@ -58,7 +65,7 @@ export default function Results({
               bg-slate-900 p-4 relative overflow-hidden"
             >
               <img
-                src={photo.src}
+                src={photo}
                 alt="Reference pose"
                 className="w-full h-full object-contain rounded-lg"
               />
@@ -68,7 +75,7 @@ export default function Results({
               bg-slate-900 p-4 overflow-hidden"
             >
               <img
-                src={referencePhoto.src}
+                src={referencePhoto}
                 alt="Reference pose"
                 className="w-full h-full object-contain rounded-lg"
               />

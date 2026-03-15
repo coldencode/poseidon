@@ -1,20 +1,14 @@
-import Results from "./results";
-
-import pose1 from "../../public/pose-library/pose1.json";
-import pose2 from "../../public/pose-library/pose2.json";
-
-import photo1 from "../../public/pose-library/pose1.png";
-import photo2 from "../../public/pose-library/pose2.png";
-
-export default function ResultsPage() {
+import { Suspense } from "react";
+import ResultsPageClient from "./ResultsPageClient";
+export default async function ResultsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ target?: string }>;
+}) {
+  const params = await searchParams;
   return (
-    <>
-    <Results
-      pose={pose2}
-      referencePose={pose1}
-      photo={photo2}
-      referencePhoto={photo1}
-    />
-    </>
+    <Suspense fallback={<div className="min-h-screen p-8">Loading results…</div>}>
+      <ResultsPageClient target={params.target} />
+    </Suspense>
   );
 }
