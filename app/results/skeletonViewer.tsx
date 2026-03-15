@@ -1,10 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { Point3D, Connection } from "../types";
-import {
-  createDifferenceArrows,
-  MEDIAPIPE_CONNECTIONS,
-} from "../util";
+import { createDifferenceArrows, MEDIAPIPE_CONNECTIONS } from "../util";
 
 export interface SceneState {
   renderer: THREE.WebGLRenderer;
@@ -19,6 +16,8 @@ export interface SceneState {
 
 function buildSkeleton(pts: Point3D[], color: number, offsetX: number) {
   const group = new THREE.Group();
+
+  if (!pts || pts.length === 0) return group;
   const mat = new THREE.MeshPhongMaterial({ color });
   const boneMat = new THREE.MeshPhongMaterial({
     color,
@@ -26,7 +25,16 @@ function buildSkeleton(pts: Point3D[], color: number, offsetX: number) {
     opacity: 0.75,
   });
 
-  const headPos = new THREE.Vector3((pts[0].x + offsetX), -pts[0].y, -pts[0].z);
+  const head = pts[0];
+  if (
+    !head ||
+    typeof head.x !== "number" ||
+    typeof head.y !== "number" ||
+    typeof head.z !== "number"
+  )
+    return group;
+
+  const headPos = new THREE.Vector3(pts[0].x + offsetX, -pts[0].y, -pts[0].z);
   const headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.09, 16, 16), mat);
   headMesh.position.copy(headPos);
   group.add(headMesh);
@@ -35,11 +43,15 @@ function buildSkeleton(pts: Point3D[], color: number, offsetX: number) {
     if (start >= pts.length || end >= pts.length) return;
 
     const pA = new THREE.Vector3(
-      (pts[start].x + offsetX),
+      pts[start].x + offsetX,
       -pts[start].y,
       -pts[start].z,
     );
-    const pB = new THREE.Vector3((pts[end].x + offsetX), -pts[end].y, -pts[end].z);
+    const pB = new THREE.Vector3(
+      pts[end].x + offsetX,
+      -pts[end].y,
+      -pts[end].z,
+    );
     const dir = new THREE.Vector3().subVectors(pB, pA);
     const len = dir.length();
     const mid = new THREE.Vector3().addVectors(pA, pB).multiplyScalar(0.5);
@@ -135,7 +147,7 @@ export default function SkeletonViewer({
     scene.add(new THREE.Points(dotGeometry, dotMaterial));
 
     const pivot = new THREE.Group();
-    
+
     if (referencePose && pose) {
       const poseSkeleton = buildSkeleton(pose, 0x2563eb, 0);
 
@@ -151,7 +163,7 @@ export default function SkeletonViewer({
       if (showPose) pivot.add(poseSkeleton);
       if (!showPose) pivot.remove(poseSkeleton);
     }
-    
+
     scene.add(pivot);
 
     stateRef.current = {
@@ -163,7 +175,6 @@ export default function SkeletonViewer({
       lastX: 0,
       lastY: 0,
     };
-
 
     const getXY = (e: MouseEvent | TouchEvent): [number, number] =>
       "touches" in e
@@ -239,7 +250,24 @@ export default function SkeletonViewer({
       canvas.removeEventListener("wheel", onWheel);
     };
   }, [showPose, showReference, showArrows]);
+  useEffect(() => {
+    const s = stateRef.current;
+    if (!s.pivot) return;
 
+    // Remove old skeleton groups (keep dots/lights which are index 0,1)
+    const toRemove = s.pivot.children.slice();
+    toRemove.forEach((child) => s.pivot!.remove(child));
+
+    if (referencePose && pose) {
+      const poseSkeleton = buildSkeleton(pose, 0x2563eb, 0);
+      const refSkeleton = buildSkeleton(referencePose, 0xea580c, 0);
+      const arrows = createDifferenceArrows(pose, referencePose, 0x475569);
+
+      if (showPose) s.pivot.add(poseSkeleton);
+      if (showReference) s.pivot.add(refSkeleton);
+      if (showArrows) s.pivot.add(arrows);
+    }
+  }, [pose, referencePose]);
   useEffect(() => {
     stateRef.current.autoRotate = autoRotate;
   }, [autoRotate]);
@@ -302,7 +330,7 @@ export default function SkeletonViewer({
         </div>
 
         {/* Controls */}
-        <div style={{ position: "absolute", top: 12, right: 12 }}>
+        <div style={{ position: "absolute", bottom: 12, right: 12 }}>
           <button
             onClick={() => setAutoRotate((v) => !v)}
             style={{
