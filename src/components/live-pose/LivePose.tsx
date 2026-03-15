@@ -69,6 +69,10 @@ type LivePoseProps = {
   ) => void;
   onPhotoCallback?: (snapshot: PoseSnapshot | null, poseMatchScore: number | null) => void;
   onPhotoCaptured?: (imageDataUrl: string) => void;
+  /** When this timestamp changes, trigger a photo capture (e.g. for timer countdown). */
+  triggerCaptureAt?: number;
+  onStartTimer?: (seconds: number) => void;
+  timerCountdown?: number | null;
 };
 
 export default function LivePose({
@@ -85,6 +89,9 @@ export default function LivePose({
   onRelativeDistanceGuidanceUpdate,
   onPhotoCallback,
   onPhotoCaptured,
+  triggerCaptureAt,
+  onStartTimer,
+  timerCountdown,
 }: LivePoseProps) {
   const [flashSignal, setFlashSignal] = useState(0);
   const [isAwaitingLlmResponse, setIsAwaitingLlmResponse] = useState(false);
@@ -318,6 +325,9 @@ export default function LivePose({
           latestSnapshotRef.current = snapshot;
           onSkeletonUpdate?.(snapshot);
         }}
+        triggerCaptureAt={triggerCaptureAt}
+        onStartTimer={onStartTimer}
+        timerCountdown={timerCountdown}
       />
 
       <LiveAIOutput text={liveAiText} visible={shouldShowAiOutput} fading={shouldFadeAiOutput} />

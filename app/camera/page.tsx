@@ -98,7 +98,21 @@ function CameraPageContent() {
   const [relativeDistanceGuidance, setRelativeDistanceGuidance] =
     useState<RelativeDistanceGuidance | null>(null);
   const [chosenSkeletonForLlm, setChosenSkeletonForLlm] = useState<string>("");
+  const [timerCountdown, setTimerCountdown] = useState<number | null>(null);
+  const [triggerCaptureAt, setTriggerCaptureAt] = useState<number | null>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    if (timerCountdown === null || timerCountdown <= 0) {
+      if (timerCountdown === 0) {
+        setTriggerCaptureAt(Date.now());
+      }
+      setTimerCountdown(null);
+      return;
+    }
+    const id = window.setTimeout(() => setTimerCountdown((c) => (c == null ? null : c - 1)), 1000);
+    return () => window.clearTimeout(id);
+  }, [timerCountdown]);
 
   const handlePhotoCaptured = useCallback((imageDataUrl: string) => {
     setCapturedItems((previousItems) => {
@@ -259,7 +273,14 @@ function CameraPageContent() {
             </div>
           </div>
         ) : null}
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 p-2">
+        <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 p-2">
+          {timerCountdown !== null && (
+            <div className="absolute inset-0 z-40 flex items-center justify-center rounded-2xl bg-black/50 backdrop-blur-[2px]">
+              <span className="text-6xl font-bold tabular-nums text-white drop-shadow-lg">
+                {timerCountdown}
+              </span>
+            </div>
+          )}
           <LivePose
             frameSize={frameSize}
             showPoseStatus
@@ -273,6 +294,9 @@ function CameraPageContent() {
             photoIntervalMs={5000}
             minMatchScoreForLlm={80}
             onPhotoCallback={handlePhotoCallback}
+            triggerCaptureAt={triggerCaptureAt ?? undefined}
+            onStartTimer={(seconds) => setTimerCountdown(seconds)}
+            timerCountdown={timerCountdown}
           />
         </div>
         <div className="mt-5">

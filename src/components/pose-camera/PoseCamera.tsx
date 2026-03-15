@@ -596,6 +596,9 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
   targetPoseWorldLandmarks,
   showTargetPoseOverlay = false,
   frameSize,
+  triggerCaptureAt,
+  onStartTimer,
+  timerCountdown,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -950,6 +953,13 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
       onPhotoCaptured(imageDataUrl);
     }
   }, [onPhotoCaptured]);
+  const triggerCaptureAtRef = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (triggerCaptureAt == null) return;
+    if (triggerCaptureAtRef.current === triggerCaptureAt) return;
+    triggerCaptureAtRef.current = triggerCaptureAt;
+    capturePhoto();
+  }, [triggerCaptureAt, capturePhoto]);
   const toggleCameraFacingMode = useCallback(() => {
     if (!canSwitchCamera) {
       return;
@@ -1098,6 +1108,21 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
               >
                 Flip
               </button>
+              {onStartTimer ? (
+                <button
+                  type="button"
+                  onClick={() => onStartTimer(5)}
+                  disabled={isLoading || timerCountdown != null}
+                  style={{
+                    ...styles.controlButton,
+                    ...(timerCountdown != null ? styles.controlButtonDisabled : {}),
+                  }}
+                  aria-label="5 second timer"
+                  title="5 second timer"
+                >
+                  5s
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={capturePhoto}
