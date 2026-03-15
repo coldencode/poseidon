@@ -39,10 +39,6 @@ export default function Results({
               <SkeletonViewer
                 pose={pose.worldLandmarks[0]}
                 referencePose={referencePose.worldLandmarks[0]}
-                connections={PoseLandmarker.POSE_CONNECTIONS.map((c) => ({
-                  start: c.start,
-                  end: c.end,
-                }))}
               />
             </div>
             <button

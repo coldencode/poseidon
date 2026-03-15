@@ -10,10 +10,10 @@ export default function ResultsPage() {
   return (
     <>
     <Results
-      pose={pose1}
-      referencePose={pose2}
-      photo={photo1}
-      referencePhoto={photo2}
+      pose={pose2}
+      referencePose={pose1}
+      photo={photo2}
+      referencePhoto={photo1}
     />
     </>
   );

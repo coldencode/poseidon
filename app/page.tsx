@@ -1,57 +1,50 @@
+import Spline from "@splinetool/react-spline/next";
 import Link from "next/link";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-sky-50 via-white to-rose-50 text-slate-900">
-      <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col items-center justify-center px-5 py-10 sm:px-8">
-        <div className="w-full max-w-md text-center">
-          <p className="text-xs tracking-[0.24em] text-sky-600 uppercase">POSE COACHING APP</p>
-          <h1 className="mt-4 text-4xl font-bold leading-tight">
-            Welcome to <span className="bg-gradient-to-r from-sky-500 to-fuchsia-500 bg-clip-text text-transparent">Poseidon</span>
-          </h1>
-          <p className="mt-3 text-sm text-slate-600">
-            Learn better poses with guided practice and real-time feedback.
-          </p>
+    <div className="relative min-h-screen overflow-hidden font-sans">
 
-          <div className="mt-6 flex items-center justify-center gap-2 text-xs text-slate-500">
-            <span className="rounded-full bg-sky-100 px-2.5 py-1 font-medium text-sky-700">Creator Mode</span>
-            <span className="rounded-full bg-fuchsia-100 px-2.5 py-1 font-medium text-fuchsia-700">Social Ready</span>
-          </div>
+      {/* Background image */}
+      <div className="absolute inset-0 -z-20 bg-cover bg-center" style={{ backgroundImage: "url('/background.jpg')" }} />
 
-          <div className="mt-8 space-y-4">
-            <div className="space-y-2">
-              <label htmlFor="email" className="text-xs font-medium tracking-wide text-slate-500 uppercase">
-                Email Sign Up
-              </label>
-              <input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none ring-sky-300 transition focus:border-sky-300 focus:ring-2"
-              />
-              <button
-                type="button"
-                className="w-full rounded-xl bg-gradient-to-r from-sky-500 to-fuchsia-500 px-4 py-3 text-sm font-semibold text-white shadow-lg shadow-sky-200 transition hover:opacity-95"
-              >
-                Get Started
-              </button>
-            </div>
+      {/* Background gradients */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(56,189,248,0.15),transparent)] -z-10" />
 
-            <Link
-              href="/poses"
-              className="block w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-center text-sm font-medium text-slate-700 transition hover:border-sky-300 hover:text-sky-700"
-            >
-              Continue as Guest
-            </Link>
-          </div>
-        </div>
-        <Link
-          href="/pose"
-          className="mt-12 min-h-[48px] min-w-[160px] rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 px-8 py-3 text-center text-base font-semibold text-white shadow-lg shadow-cyan-500/25 transition hover:from-cyan-400 hover:to-blue-500 active:scale-[0.98]"
+      {/* Spline scene */}
+      <div className="absolute inset-0 z-0">
+        <Spline scene="https://prod.spline.design/bDJOcNEVMiAlLDy1/scene.splinecode" />
+      </div>
+
+      {/* Title */}
+      <div className="absolute bottom-44 left-1/2 z-10 -translate-x-1/2 text-center drop-shadow-lg">
+        <h1
+          className="text-5xl font-black tracking-[0.35em] bg-gradient-to-r from-sky-400 via-indigo-400 to-blue-600 bg-clip-text text-transparent md:text-7xl"
+          style={{
+            textShadow: "0 4px 12px rgba(0,0,0,0.25)",
+            backgroundImage:
+              "linear-gradient(150deg,#7fdbff,#93B5F4,#3b82f6,#1d4ed8)",
+          }}
         >
-          Start
-        </Link>
-      </main>
+          POSEIDON
+        </h1>
+      </div>
+
+      {/* Start button */}
+      <Link
+        href="/poses"
+        className="absolute bottom-28 left-1/2 z-10 -translate-x-1/2 rounded-xl px-10 py-3 font-semibold text-white shadow-lg transition duration-200 ease-out hover:brightness-90 hover:scale-105"
+        style={{ backgroundColor: "#93B5F4" }}
+      >
+        Start
+      </Link>
+
+      {/* Footer text */}
+      <div className="absolute bottom-4 left-1/2 z-10 -translate-x-1/2 text-center text-xs font-semibold text-[#93B5F4]">
+        UNIHACK 2026
+      </div>
     </div>
   );
 }
+
+

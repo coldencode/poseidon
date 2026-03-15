@@ -8,7 +8,9 @@ const POSE_IMAGES = [
   "/pose-library/pose1.png",
   "/pose-library/pose2.png",
  
+  "/pose-library/pose9.png",
 ];
+
 
 export default function PoseTestPage() {
   const [currentImage, setCurrentImage] = useState<string | null>(null);
