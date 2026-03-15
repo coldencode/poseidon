@@ -586,6 +586,7 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
   onSkeletonUpdate,
   onPhotoCaptured,
   onPoseMatchScoreUpdate,
+  flashSignal,
   onPoseGuidanceUpdate,
   onRelativeDistanceGuidanceUpdate,
   callbackIntervalMs = 5000,
@@ -595,6 +596,9 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
   targetPoseWorldLandmarks,
   showTargetPoseOverlay = false,
   frameSize,
+  triggerCaptureAt,
+  onStartTimer,
+  timerCountdown,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -620,6 +624,8 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
     useRef<RelativeDistanceGuidance | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const detectPoseRef = useRef<() => void>(() => undefined);
+  const flashOverlayRef = useRef<HTMLDivElement>(null);
+
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [poseDetected, setPoseDetected] = useState(false);
@@ -633,7 +639,8 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
   const [poseMatchScore, setPoseMatchScore] = useState<number | null>(null);
   const [relativeDistanceGuidance, setRelativeDistanceGuidance] =
     useState<RelativeDistanceGuidance | null>(null);
-  const [showModelSkeleton, setShowModelSkeleton] = useState(true);
+  const [showModelSkeleton, setShowModelSkeleton] = useState(false);
+  const [showUserSkeleton, setShowUserSkeleton] = useState(false);
 
   const safeFrameSize = useMemo(
     () => ({
@@ -683,19 +690,30 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
   useEffect(() => {
     callbackIntervalRef.current = callbackIntervalMs;
   }, [callbackIntervalMs]);
+
   useEffect(() => {
-    smoothedScaleRatioRef.current = null;
-    lastRelativeDistanceGuidanceRef.current = null;
-    setRelativeDistanceGuidance(null);
-    const callback = relativeDistanceCallbackRef.current;
-    if (callback) {
-      callback(null);
+    if (typeof flashSignal !== "number") {
+      return;
     }
-    const guidanceCallback = poseGuidanceCallbackRef.current;
-    if (guidanceCallback) {
-      guidanceCallback(null);
+
+    const flashOverlay = flashOverlayRef.current;
+    if (!flashOverlay) {
+      return;
     }
-  }, [fittedTargetPoseLandmarks]);
+
+    flashOverlay.style.transition = "none";
+    flashOverlay.style.opacity = "0.65";
+
+    const frameId = window.requestAnimationFrame(() => {
+      flashOverlay.style.transition = "opacity 170ms ease-out";
+      flashOverlay.style.opacity = "0";
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [flashSignal]);
+
   // Initialize MediaPipe Pose Landmarker
   const initPoseLandmarker = useCallback(async () => {
     try {
@@ -859,18 +877,20 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
           }
         }
       }
-      for (const poseLandmarks of landmarks) {
-        drawPoseLandmarkSet(poseLandmarks, canvasCtx, {
-          videoWidth: video.videoWidth,
-          videoHeight: video.videoHeight,
-          canvasWidth: canvas.width,
-          canvasHeight: canvas.height,
-        }, {
-          connectorColor: "#00FF88",
-          pointColor: "#FF3366",
-          lineWidth: 3,
-          radius: 4,
-        });
+      if (showUserSkeleton) {
+        for (const poseLandmarks of landmarks) {
+          drawPoseLandmarkSet(poseLandmarks, canvasCtx, {
+            videoWidth: video.videoWidth,
+            videoHeight: video.videoHeight,
+            canvasWidth: canvas.width,
+            canvasHeight: canvas.height,
+          }, {
+            connectorColor: "#00FF88",
+            pointColor: "#FF3366",
+            lineWidth: 3,
+            radius: 4,
+          });
+        }
       }
     } else if (poseMatchScore !== null) {
       setPoseMatchScore(null);
@@ -910,6 +930,7 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
   }, [
     showTargetPoseOverlay,
     showModelSkeleton,
+    showUserSkeleton,
     fittedTargetPoseLandmarks,
     targetPoseWorldLandmarks,
     poseMatchScore,
@@ -936,6 +957,13 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
       onPhotoCaptured(imageDataUrl);
     }
   }, [onPhotoCaptured]);
+  const triggerCaptureAtRef = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (triggerCaptureAt == null) return;
+    if (triggerCaptureAtRef.current === triggerCaptureAt) return;
+    triggerCaptureAtRef.current = triggerCaptureAt;
+    capturePhoto();
+  }, [triggerCaptureAt, capturePhoto]);
   const toggleCameraFacingMode = useCallback(() => {
     if (!canSwitchCamera) {
       return;
@@ -1043,6 +1071,9 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
           muted
         />
         <canvas ref={canvasRef} style={styles.canvas} />
+
+        <div ref={flashOverlayRef} style={styles.flashOverlay} />
+
         {lastCapturedImage ? (
           <Image
             src={lastCapturedImage}
@@ -1061,13 +1092,20 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
               </p>
             ) : null}
             <div style={styles.controlsBar}>
+              <button
+                type="button"
+                onClick={() => setShowUserSkeleton((previous) => !previous)}
+                style={styles.controlButton}
+              >
+                {showUserSkeleton ? "Hide User Skeleton" : "Show User Skeleton"}
+              </button>
               {showTargetPoseOverlay ? (
                 <button
                   type="button"
                   onClick={() => setShowModelSkeleton((previous) => !previous)}
                   style={styles.controlButton}
                 >
-                  {showModelSkeleton ? "Hide Skeleton" : "Show Skeleton"}
+                  {showModelSkeleton ? "Hide Model Skeleton" : "Show Model Skeleton"}
                 </button>
               ) : null}
               <button
@@ -1081,6 +1119,21 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
               >
                 Flip
               </button>
+              {onStartTimer ? (
+                <button
+                  type="button"
+                  onClick={() => onStartTimer(5)}
+                  disabled={isLoading || timerCountdown != null}
+                  style={{
+                    ...styles.controlButton,
+                    ...(timerCountdown != null ? styles.controlButtonDisabled : {}),
+                  }}
+                  aria-label="5 second timer"
+                  title="5 second timer"
+                >
+                  5s
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={capturePhoto}

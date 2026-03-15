@@ -3,16 +3,37 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import PoseCamera from "@/src/components/pose-camera/PoseCamera";
+import LivePose from "@/src/components/live-pose/LivePose";
 import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
 import type { RelativeDistanceGuidance, PoseSnapshot } from "@/app/types";
-import { PHOTO_STORAGE_KEY } from "../types";
+const PHOTO_STORAGE_KEY = "poseidon.captures";
 const MAX_CAPTURE_HISTORY = 12;
+const POSE_REDUCTION_KEEP = [0, 7, 8, 11, 12, 13, 14, 15, 16, 19, 20, 23, 24, 25, 26, 27, 28, 31, 32] as const;
+
 type PoseLibraryJson = {
   pose?: string;
   landmarks?: NormalizedLandmark[][];
   worldLandmarks?: NormalizedLandmark[][];
 };
+
+const toReducedSkeletonJson = (landmarks: NormalizedLandmark[] | undefined): string => {
+  if (!landmarks || landmarks.length === 0) {
+    return "";
+  }
+
+  const reducedLandmarks = POSE_REDUCTION_KEEP
+    .map((index) => landmarks[index])
+    .filter((landmark): landmark is NormalizedLandmark => Boolean(landmark))
+    .map((landmark) => [
+      Number(landmark.x.toFixed(5)),
+      Number(landmark.y.toFixed(5)),
+      Number(landmark.z.toFixed(5)),
+      Number((landmark.visibility ?? 0).toFixed(5)),
+    ]);
+
+  return JSON.stringify(reducedLandmarks);
+};
+
 function CameraPageContent() {
   const searchParams = useSearchParams();
   const selectedPoseId = searchParams.get("pose");
@@ -53,7 +74,7 @@ function CameraPageContent() {
             targetPoseImage: item.targetPoseImage ?? null,
           }));
       }
-    } catch (err) {
+    } catch {
       localStorage.removeItem(PHOTO_STORAGE_KEY);
     }
     return [];
@@ -76,45 +97,64 @@ function CameraPageContent() {
   const [targetPoseLabel, setTargetPoseLabel] = useState<string | null>(null);
   const [relativeDistanceGuidance, setRelativeDistanceGuidance] =
     useState<RelativeDistanceGuidance | null>(null);
-
+  const [chosenSkeletonForLlm, setChosenSkeletonForLlm] = useState<string>("");
+  const [timerCountdown, setTimerCountdown] = useState<number | null>(null);
+  const [triggerCaptureAt, setTriggerCaptureAt] = useState<number | null>(null);
   const router = useRouter();
 
-  const handlePhotoCaptured = useCallback(
-    (imageDataUrl: string) => {
-      const capture: CapturedItem = {
-        id: `capture-${Date.now()}`,
+  useEffect(() => {
+    if (timerCountdown === null || timerCountdown <= 0) {
+      if (timerCountdown === 0) {
+        setTriggerCaptureAt(Date.now());
+      }
+      setTimerCountdown(null);
+      return;
+    }
+    const id = window.setTimeout(() => setTimerCountdown((c) => (c == null ? null : c - 1)), 1000);
+    return () => window.clearTimeout(id);
+  }, [timerCountdown]);
+
+  const handlePhotoCaptured = useCallback((imageDataUrl: string) => {
+    setCapturedItems((previousItems) => {
+      const newItem: CapturedItem = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         photo: imageDataUrl,
         snapshot: latestSnapshot ?? undefined,
         targetPoseId: selectedPoseId,
-        targetPoseImage: targetPoseImage,
+        targetPoseImage,
       };
-
-      setCapturedItems((previousItems) => {
-        const updatedItems = [capture, ...previousItems].slice(
-          0,
-          MAX_CAPTURE_HISTORY,
-        );
-        localStorage.setItem(PHOTO_STORAGE_KEY, JSON.stringify(updatedItems));
-        setSelectedCaptureIndex(0);
-        setShowResultConfirm(true);
-        return updatedItems;
-      });
-    },
-    [latestSnapshot, selectedPoseId, targetPoseImage],
-  );
-
-  const handleSelectCapture = (index: number) => {
-    setSelectedCaptureIndex(index);
-    setShowResultConfirm(true);
-  };
-
-  const handleDeleteCapture = useCallback((id: string) => {
-    setCapturedItems((previousItems) => {
-      const updatedItems = previousItems.filter((item) => item.id !== id);
+      const updatedItems = [newItem, ...previousItems].slice(
+        0,
+        MAX_CAPTURE_HISTORY,
+      );
       localStorage.setItem(PHOTO_STORAGE_KEY, JSON.stringify(updatedItems));
       return updatedItems;
     });
+  }, [latestSnapshot, selectedPoseId, targetPoseImage]);
+
+  const handlePhotoCallback = useCallback((_: PoseSnapshot | null) => {
+    void _;
   }, []);
+
+  const handleSelectCapture = useCallback((index: number) => {
+    setSelectedCaptureIndex(index);
+    setShowResultConfirm(true);
+  }, []);
+
+  const handleDeleteCapture = useCallback((index: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCapturedItems((previousItems) => {
+      const updated = previousItems.filter((_, i) => i !== index);
+      localStorage.setItem(PHOTO_STORAGE_KEY, JSON.stringify(updated));
+      return updated;
+    });
+    if (selectedCaptureIndex === index) {
+      setShowResultConfirm(false);
+      setSelectedCaptureIndex(null);
+    } else if (selectedCaptureIndex !== null && selectedCaptureIndex > index) {
+      setSelectedCaptureIndex(selectedCaptureIndex - 1);
+    }
+  }, [selectedCaptureIndex]);
 
   const handleGoToResults = () => {
     if (selectedCaptureIndex === null) {
@@ -125,7 +165,7 @@ function CameraPageContent() {
     const targetId = selected.targetPoseId || selectedPoseId;
     setShowResultConfirm(false);
     if (targetId) {
-      router.push(`/results?target=${encodeURIComponent(targetId)}`);
+      router.push(`/results?pose=${encodeURIComponent(targetId)}`);
     } else {
       router.push("/results");
     }
@@ -148,6 +188,7 @@ function CameraPageContent() {
         setTargetPoseWorldLandmarks(undefined);
         setTargetPoseImage(null);
         setTargetPoseLabel(null);
+        setChosenSkeletonForLlm("");
         return;
       }
       try {
@@ -157,7 +198,6 @@ function CameraPageContent() {
         }
 
         const parsed = (await response.json()) as PoseLibraryJson;
-        console.log(parsed);
         const firstLandmarks = Array.isArray(parsed.landmarks)
           ? parsed.landmarks[0]
           : undefined;
@@ -168,6 +208,7 @@ function CameraPageContent() {
           return;
         }
         setTargetPoseLandmarks(firstLandmarks);
+        setChosenSkeletonForLlm(toReducedSkeletonJson(firstLandmarks));
         setTargetPoseWorldLandmarks(firstWorldLandmarks);
         setTargetPoseImage(
           parsed.pose
@@ -183,6 +224,7 @@ function CameraPageContent() {
         setTargetPoseWorldLandmarks(undefined);
         setTargetPoseImage(null);
         setTargetPoseLabel(null);
+        setChosenSkeletonForLlm("");
       }
     };
     loadTargetPose();
@@ -246,8 +288,15 @@ function CameraPageContent() {
             </div>
           </div>
         ) : null}
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 p-2">
-          <PoseCamera
+        <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 p-2">
+          {timerCountdown !== null && (
+            <div className="absolute inset-0 z-40 flex items-center justify-center rounded-2xl bg-black/50 backdrop-blur-[2px]">
+              <span className="text-6xl font-bold tabular-nums text-white drop-shadow-lg">
+                {timerCountdown}
+              </span>
+            </div>
+          )}
+          <LivePose
             frameSize={frameSize}
             showPoseStatus
             showControls
@@ -255,8 +304,14 @@ function CameraPageContent() {
             onPhotoCaptured={handlePhotoCaptured}
             targetPoseLandmarks={targetPoseLandmarks}
             targetPoseWorldLandmarks={targetPoseWorldLandmarks}
-            showTargetPoseOverlay
             onRelativeDistanceGuidanceUpdate={setRelativeDistanceGuidance}
+            chosenSkeletonForLlm={chosenSkeletonForLlm}
+            photoIntervalMs={5000}
+            minMatchScoreForLlm={80}
+            onPhotoCallback={handlePhotoCallback}
+            triggerCaptureAt={triggerCaptureAt ?? undefined}
+            onStartTimer={(seconds) => setTimerCountdown(seconds)}
+            timerCountdown={timerCountdown}
           />
         </div>
         <div className="mt-5">
@@ -275,15 +330,36 @@ function CameraPageContent() {
               </div>
             ) : (
               capturedItems.map((photo, index) => (
-                <Image
+                <div
                   key={`${photo.photo.slice(0, 24)}-${index}`}
-                  src={photo.photo}
-                  alt={`Captured pose ${index + 1}`}
-                  width={48}
-                  height={64}
-                  unoptimized
-                  className="h-16 w-12 rounded-lg border border-slate-200 bg-white object-cover shadow-sm"
-                />
+                  className="relative flex-shrink-0"
+                >
+                  <button
+                    type="button"
+                    onClick={() => handleSelectCapture(index)}
+                    className="block rounded-lg border border-slate-200 bg-white p-0 shadow-sm transition hover:scale-[1.02]"
+                    aria-label={`Select captured pose ${index + 1} for comparison`}
+                  >
+                    <Image
+                      src={photo.photo}
+                      alt={`Captured pose ${index + 1}`}
+                      width={48}
+                      height={64}
+                      unoptimized
+                      className="h-16 w-12 rounded-lg object-cover"
+                    />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => handleDeleteCapture(index, e)}
+                    className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-slate-700 text-white shadow-md transition hover:bg-red-500 focus:outline-none focus:ring-2 focus:ring-sky-400"
+                    aria-label={`Delete captured pose ${index + 1}`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
               ))
             )}
             <label className="flex h-16 w-12 flex-shrink-0 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-slate-300 bg-white text-slate-400 shadow-sm transition hover:border-slate-400 hover:text-slate-600">

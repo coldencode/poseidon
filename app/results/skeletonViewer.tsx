@@ -1,7 +1,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
-import { Point3D, Connection } from "../types";
+import { Point3D } from "../types";
 import { createDifferenceArrows, MEDIAPIPE_CONNECTIONS } from "../util";
 
 export interface SceneState {

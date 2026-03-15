@@ -25,6 +25,7 @@ export type PoseCameraProps = {
   onSkeletonUpdate?: (snapshot: PoseSnapshot) => void;
   onPhotoCaptured?: (imageDataUrl: string) => void;
   onPoseMatchScoreUpdate?: (score: number | null) => void;
+  flashSignal?: number;
   onPoseGuidanceUpdate?: (guidance: PoseGuidanceSummary | null) => void;
   onRelativeDistanceGuidanceUpdate?: (
     guidance: RelativeDistanceGuidance | null,
@@ -39,6 +40,12 @@ export type PoseCameraProps = {
     width: number;
     height: number;
   };
+  /** When this timestamp changes, trigger a photo capture (e.g. for timer countdown). */
+  triggerCaptureAt?: number;
+  /** If set, a 5s timer button is shown next to the capture button; when clicked this is called with 5. */
+  onStartTimer?: (seconds: number) => void;
+  /** When non-null, the timer is running (e.g. disable the timer button). */
+  timerCountdown?: number | null;
 };
 
 export interface Point3D {
