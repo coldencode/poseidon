@@ -6,6 +6,7 @@ import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import PoseCamera from "@/src/components/pose-camera/PoseCamera";
 import type { NormalizedLandmark } from "@mediapipe/tasks-vision";
+import type { RelativeDistanceGuidance } from "@/app/types";
 import { PHOTO_STORAGE_KEY } from "../types";
 
 const MAX_CAPTURE_HISTORY = 12;
@@ -59,9 +60,14 @@ function CameraPageContent() {
   const [targetPoseLandmarks, setTargetPoseLandmarks] = useState<
     NormalizedLandmark[] | undefined
   >(undefined);
+  const [targetPoseWorldLandmarks, setTargetPoseWorldLandmarks] = useState<
+    NormalizedLandmark[] | undefined
+  >(undefined);
   const [targetPoseImage, setTargetPoseImage] = useState<string | null>(null);
   const [targetPoseLabel, setTargetPoseLabel] = useState<string | null>(null);
   const [poseMatchScore, setPoseMatchScore] = useState<number | null>(null);
+  const [relativeDistanceGuidance, setRelativeDistanceGuidance] =
+    useState<RelativeDistanceGuidance | null>(null);
 
   const handlePhotoCaptured = useCallback((imageDataUrl: string) => {
     setCapturedPhotos((previousPhotos) => {
@@ -92,6 +98,7 @@ function CameraPageContent() {
     const loadTargetPose = async () => {
       if (!selectedPoseId) {
         setTargetPoseLandmarks(undefined);
+        setTargetPoseWorldLandmarks(undefined);
         setTargetPoseImage(null);
         setTargetPoseLabel(null);
         return;
@@ -107,15 +114,17 @@ function CameraPageContent() {
         console.log(parsed);
         const firstLandmarks = Array.isArray(parsed.landmarks)
           ? parsed.landmarks[0]
-          : Array.isArray(parsed.worldLandmarks)
-            ? parsed.worldLandmarks[0]
-            : undefined;
+          : undefined;
+        const firstWorldLandmarks = Array.isArray(parsed.worldLandmarks)
+          ? parsed.worldLandmarks[0]
+          : undefined;
 
         if (!isActive) {
           return;
         }
 
         setTargetPoseLandmarks(firstLandmarks);
+        setTargetPoseWorldLandmarks(firstWorldLandmarks);
         setTargetPoseImage(
           parsed.pose
             ? `/pose-library/${parsed.pose}`
@@ -127,6 +136,7 @@ function CameraPageContent() {
           return;
         }
         setTargetPoseLandmarks(undefined);
+        setTargetPoseWorldLandmarks(undefined);
         setTargetPoseImage(null);
         setTargetPoseLabel(null);
       }
@@ -187,9 +197,16 @@ function CameraPageContent() {
             <p className="text-xs text-slate-600">
               Match your live pose to the overlaid skeleton guide.
             </p>
-            <span className="ml-auto rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
-              Score: {poseMatchScore !== null ? `${poseMatchScore}%` : "--"}
-            </span>
+            <div className="ml-auto flex flex-col items-end gap-1">
+              <span className="rounded-full bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
+                Score: {poseMatchScore !== null ? `${poseMatchScore}%` : "--"}
+              </span>
+              <span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">
+                Distance: {relativeDistanceGuidance
+                  ? `${relativeDistanceGuidance.category} (${relativeDistanceGuidance.scaleRatio.toFixed(2)}x)`
+                  : "--"}
+              </span>
+            </div>
           </div>
         ) : null}
 
@@ -200,8 +217,10 @@ function CameraPageContent() {
             showControls
             onPhotoCaptured={handlePhotoCaptured}
             targetPoseLandmarks={targetPoseLandmarks}
+            targetPoseWorldLandmarks={targetPoseWorldLandmarks}
             showTargetPoseOverlay
             onPoseMatchScoreUpdate={setPoseMatchScore}
+            onRelativeDistanceGuidanceUpdate={setRelativeDistanceGuidance}
           />
         </div>
 

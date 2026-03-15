@@ -21,8 +21,8 @@ export default function Results({
 }: {
   pose: Pose;
   referencePose: Pose;
-  photo: StaticImageData;
-  referencePhoto: StaticImageData;
+  photo: string;
+  referencePhoto: string;
 }) {
   const handleSaveToLibrary = async () => {
     if (!photo) return;
