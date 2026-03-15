@@ -1,5 +1,5 @@
-"use client"
 
+"use client"
 import React, { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import Image from "next/image";
 /**
@@ -29,41 +29,35 @@ import {
   computeRelativeDistanceGuidance,
   isLikelyNormalizedLandmarks,
 } from "./pose-calculations";
-
 // MediaPipe pose landmark connections for drawing the skeleton
 const POSE_CONNECTIONS = PoseLandmarker.POSE_CONNECTIONS;
 const MEDIAPIPE_WASM_BASE_URL =
   "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm";
 const POSE_MODEL_URL =
   "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task";
-
 type PoseProjection = {
   videoWidth: number;
   videoHeight: number;
   canvasWidth: number;
   canvasHeight: number;
 };
-
 type DrawStyle = {
   connectorColor: string;
   pointColor: string;
   lineWidth: number;
   radius: number;
 };
-
 type ProjectionRect = {
   x: number;
   y: number;
   width: number;
   height: number;
 };
-
 const fitPoseLandmarksToFrame = (
   landmarks: NormalizedLandmark[]
 ): NormalizedLandmark[] => {
   return landmarks;
 };
-
 const drawPoseLandmarkSet = (
   poseLandmarks: NormalizedLandmark[],
   canvasCtx: CanvasRenderingContext2D,
@@ -78,37 +72,29 @@ const drawPoseLandmarkSet = (
   const drawnHeight = projection.videoHeight * scale;
   const offsetX = (projection.canvasWidth - drawnWidth) / 2;
   const offsetY = (projection.canvasHeight - drawnHeight) / 2;
-
   const projectPoint = (landmark: NormalizedLandmark) => ({
     x: landmark.x * projection.videoWidth * scale + offsetX,
     y: landmark.y * projection.videoHeight * scale + offsetY,
   });
-
   canvasCtx.strokeStyle = style.connectorColor;
   canvasCtx.lineWidth = style.lineWidth;
   canvasCtx.fillStyle = style.pointColor;
-
   for (const connection of POSE_CONNECTIONS) {
     const startIndex =
       Array.isArray(connection) ? connection[0] : connection.start;
     const endIndex = Array.isArray(connection) ? connection[1] : connection.end;
-
     const start = poseLandmarks[startIndex];
     const end = poseLandmarks[endIndex];
-
     if (!start || !end) {
       continue;
     }
-
     const startPoint = projectPoint(start);
     const endPoint = projectPoint(end);
-
     canvasCtx.beginPath();
     canvasCtx.moveTo(startPoint.x, startPoint.y);
     canvasCtx.lineTo(endPoint.x, endPoint.y);
     canvasCtx.stroke();
   }
-
   for (const landmark of poseLandmarks) {
     const point = projectPoint(landmark);
     canvasCtx.beginPath();
@@ -116,14 +102,12 @@ const drawPoseLandmarkSet = (
     canvasCtx.fill();
   }
 };
-
 const getCenteredMobileGuideRect = (
   canvasWidth: number,
   canvasHeight: number,
   mobileAspectRatio = 9 / 16
 ): ProjectionRect => {
   const canvasAspect = canvasWidth / canvasHeight;
-
   if (canvasAspect > mobileAspectRatio) {
     const guideWidth = canvasHeight * mobileAspectRatio;
     return {
@@ -133,7 +117,6 @@ const getCenteredMobileGuideRect = (
       height: canvasHeight,
     };
   }
-
   const guideHeight = canvasWidth / mobileAspectRatio;
   return {
     x: 0,
@@ -142,7 +125,6 @@ const getCenteredMobileGuideRect = (
     height: guideHeight,
   };
 };
-
 const drawPoseLandmarkSetInRect = (
   poseLandmarks: NormalizedLandmark[],
   canvasCtx: CanvasRenderingContext2D,
@@ -153,32 +135,25 @@ const drawPoseLandmarkSetInRect = (
     x: rect.x + (1 - landmark.x) * rect.width,
     y: rect.y + landmark.y * rect.height,
   });
-
   canvasCtx.strokeStyle = style.connectorColor;
   canvasCtx.lineWidth = style.lineWidth;
   canvasCtx.fillStyle = style.pointColor;
-
   for (const connection of POSE_CONNECTIONS) {
     const startIndex =
       Array.isArray(connection) ? connection[0] : connection.start;
     const endIndex = Array.isArray(connection) ? connection[1] : connection.end;
-
     const start = poseLandmarks[startIndex];
     const end = poseLandmarks[endIndex];
-
     if (!start || !end) {
       continue;
     }
-
     const startPoint = projectPoint(start);
     const endPoint = projectPoint(end);
-
     canvasCtx.beginPath();
     canvasCtx.moveTo(startPoint.x, startPoint.y);
     canvasCtx.lineTo(endPoint.x, endPoint.y);
     canvasCtx.stroke();
   }
-
   for (const landmark of poseLandmarks) {
     const point = projectPoint(landmark);
     canvasCtx.beginPath();
@@ -186,7 +161,6 @@ const drawPoseLandmarkSetInRect = (
     canvasCtx.fill();
   }
 };
-
 const drawGuidanceBoneInRect = (
   canvasCtx: CanvasRenderingContext2D,
   rect: ProjectionRect,
@@ -195,19 +169,15 @@ const drawGuidanceBoneInRect = (
 ) => {
   const targetStart = targetLandmarks[evaluation.startIndex];
   const targetEnd = targetLandmarks[evaluation.endIndex];
-
   if (!targetStart || !targetEnd) {
     return;
   }
-
   const projectPoint = (landmark: NormalizedLandmark) => ({
     x: rect.x + (1 - landmark.x) * rect.width,
     y: rect.y + landmark.y * rect.height,
   });
-
   const targetStartPoint = projectPoint(targetStart);
   const targetEndPoint = projectPoint(targetEnd);
-
   canvasCtx.save();
   canvasCtx.strokeStyle = "rgba(251, 146, 60, 0.95)";
   canvasCtx.lineWidth = 4;
@@ -215,15 +185,12 @@ const drawGuidanceBoneInRect = (
   canvasCtx.moveTo(targetStartPoint.x, targetStartPoint.y);
   canvasCtx.lineTo(targetEndPoint.x, targetEndPoint.y);
   canvasCtx.stroke();
-
   canvasCtx.fillStyle = "rgba(251, 146, 60, 0.95)";
   canvasCtx.beginPath();
   canvasCtx.arc(targetEndPoint.x, targetEndPoint.y, 5, 0, Math.PI * 2);
   canvasCtx.fill();
-
   canvasCtx.restore();
 };
-
 
 const PoseCamera: React.FC<PoseCameraProps> = ({
   onSkeletonUpdate,
@@ -263,7 +230,6 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
     useRef<RelativeDistanceGuidance | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const detectPoseRef = useRef<() => void>(() => undefined);
-
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [poseDetected, setPoseDetected] = useState(false);
@@ -275,7 +241,6 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
     null
   );
   const [poseMatchScore, setPoseMatchScore] = useState<number | null>(null);
-
   const safeFrameSize = useMemo(
     () => ({
       width: Math.max(1, frameSize.width),
@@ -283,7 +248,6 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
     }),
     [frameSize.height, frameSize.width]
   );
-
   const cameraConstraints = useMemo(
     () =>
       ({
@@ -296,7 +260,6 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
       }) satisfies MediaStreamConstraints,
     [facingMode]
   );
-
   const cameraContainerStyle = useMemo<React.CSSProperties>(
     () => ({
       ...styles.cameraContainer,
@@ -304,36 +267,28 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
     }),
     [safeFrameSize.height, safeFrameSize.width]
   );
-
   const fittedTargetPoseLandmarks = useMemo(() => {
     if (!targetPoseLandmarks || targetPoseLandmarks.length === 0) {
       return undefined;
     }
-
     return fitPoseLandmarksToFrame(targetPoseLandmarks);
   }, [targetPoseLandmarks]);
-
   // Set callback and interval refs to latest values
   useEffect(() => {
     callbackRef.current = onSkeletonUpdate;
   }, [onSkeletonUpdate]);
-
   useEffect(() => {
     poseMatchCallbackRef.current = onPoseMatchScoreUpdate;
   }, [onPoseMatchScoreUpdate]);
-
   useEffect(() => {
     poseGuidanceCallbackRef.current = onPoseGuidanceUpdate;
   }, [onPoseGuidanceUpdate]);
-
   useEffect(() => {
     relativeDistanceCallbackRef.current = onRelativeDistanceGuidanceUpdate;
   }, [onRelativeDistanceGuidanceUpdate]);
-
   useEffect(() => {
     callbackIntervalRef.current = callbackIntervalMs;
   }, [callbackIntervalMs]);
-
   useEffect(() => {
     smoothedScaleRatioRef.current = null;
     lastRelativeDistanceGuidanceRef.current = null;
@@ -341,20 +296,17 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
     if (callback) {
       callback(null);
     }
-
     const guidanceCallback = poseGuidanceCallbackRef.current;
     if (guidanceCallback) {
       guidanceCallback(null);
     }
   }, [fittedTargetPoseLandmarks]);
-
   // Initialize MediaPipe Pose Landmarker
   const initPoseLandmarker = useCallback(async () => {
     try {
       const vision = await FilesetResolver.forVisionTasks(
         MEDIAPIPE_WASM_BASE_URL
       );
-
       const poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
         baseOptions: {
           modelAssetPath: POSE_MODEL_URL,
@@ -366,7 +318,6 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
         minPosePresenceConfidence: 0.5,
         minTrackingConfidence: 0.5,
       });
-
       poseLandmarkerRef.current = poseLandmarker;
       console.log("Pose Tracker initialised");
     } catch (err) {
@@ -374,27 +325,21 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
       setError("Failed to load pose detection model. Please refresh.");
     }
   }, []);
-
   // Start webcam
   const startCamera = useCallback(async () => {
     try {
       setError(null);
-
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
       }
-
       const stream = await navigator.mediaDevices.getUserMedia(cameraConstraints);
-
       streamRef.current = stream;
-
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
         console.log("Camera started");
       }
-
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoInputs = devices.filter((device) => device.kind === "videoinput");
       setCanSwitchCamera(videoInputs.length > 1);
@@ -408,7 +353,6 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
       );
     }
   }, [cameraConstraints]);
-
   // Detection loop
   const detectPose = useCallback(() => {
     const video = videoRef.current;
@@ -419,34 +363,27 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
         detectPoseRef.current();
       });
     };
-
     if (!video || !canvas || !poseLandmarker || video.readyState < 2) {
       scheduleNextFrame();
       return;
     }
-
     const displayWidth = Math.floor(canvas.clientWidth);
     const displayHeight = Math.floor(canvas.clientHeight);
-
     if (displayWidth <= 0 || displayHeight <= 0) {
       scheduleNextFrame();
       return;
     }
-
     if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
       canvas.width = displayWidth;
       canvas.height = displayHeight;
     }
-
     const canvasCtx = canvas.getContext("2d");
     if (!canvasCtx) {
       scheduleNextFrame();
       return;
     }
-
     // Clear previous frame
     canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
-
     const timestamp = performance.now();
     const result = poseLandmarker.detectForVideo(video, timestamp);
     const landmarks = result.landmarks ?? [];
@@ -457,10 +394,8 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
       hasNormalizedTarget && userFrameLandmarks
         ? computePoseGuidance(userFrameLandmarks, fittedTargetPoseLandmarks)
         : { score: null, summary: null, highlightedBones: [] };
-
     const hasPose = landmarks.length > 0;
     setPoseDetected(hasPose);
-
     if (showTargetPoseOverlay && fittedTargetPoseLandmarks && fittedTargetPoseLandmarks.length > 0) {
       const mobileGuideRect = getCenteredMobileGuideRect(canvas.width, canvas.height);
       drawPoseLandmarkSetInRect(fittedTargetPoseLandmarks, canvasCtx, mobileGuideRect, {
@@ -469,7 +404,6 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
         lineWidth: 2,
         radius: 3,
       });
-
       if (userFrameLandmarks && normalizedGuidance.highlightedBones.length > 0) {
         for (const highlightedBone of normalizedGuidance.highlightedBones) {
           drawGuidanceBoneInRect(
@@ -481,12 +415,10 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
         }
       }
     }
-
     if (hasPose) {
       const hasWorldTarget =
         targetPoseWorldLandmarks && targetPoseWorldLandmarks.length > 0;
       const userWorldLandmarks = result.worldLandmarks?.[0];
-
       const score = hasWorldTarget && userWorldLandmarks
         ? computePoseMatchScore(userWorldLandmarks, targetPoseWorldLandmarks)
         : normalizedGuidance.score;
@@ -499,7 +431,6 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
             )
           : null;
       const currentTime = performance.now();
-
       if (currentTime - lastScoreUpdateTimeRef.current >= 120) {
         lastScoreUpdateTimeRef.current = currentTime;
         setPoseMatchScore(score);
@@ -507,12 +438,10 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
         if (callback) {
           callback(score);
         }
-
         const guidanceCallback = poseGuidanceCallbackRef.current;
         if (guidanceCallback) {
           guidanceCallback(normalizedGuidance.summary);
         }
-
         if (relativeDistance) {
           smoothedScaleRatioRef.current = relativeDistance.smoothedRatio;
           lastRelativeDistanceGuidanceRef.current = relativeDistance.guidance;
@@ -529,7 +458,6 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
           }
         }
       }
-
       for (const poseLandmarks of landmarks) {
         drawPoseLandmarkSet(poseLandmarks, canvasCtx, {
           videoWidth: video.videoWidth,
@@ -549,12 +477,10 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
       if (callback) {
         callback(null);
       }
-
       const guidanceCallback = poseGuidanceCallbackRef.current;
       if (guidanceCallback) {
         guidanceCallback(null);
       }
-
       if (lastRelativeDistanceGuidanceRef.current !== null) {
         smoothedScaleRatioRef.current = null;
         lastRelativeDistanceGuidanceRef.current = null;
@@ -564,7 +490,6 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
         }
       }
     }
-
     const callbackFn = callbackRef.current;
     // If enough time has passed since last callback, invoke with latest pose data
     if (
@@ -575,10 +500,10 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
       callbackFn({
         timestamp,
         landmarks,
+        worldLandmarks: result.worldLandmarks ?? [],
         hasPose,
       });
     }
-
     scheduleNextFrame();
   }, [
     showTargetPoseOverlay,
@@ -586,35 +511,28 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
     targetPoseWorldLandmarks,
     poseMatchScore,
   ]);
-
   useEffect(() => {
     detectPoseRef.current = detectPose;
   }, [detectPose]);
-
   const capturePhoto = useCallback(() => {
     const video = videoRef.current;
     if (!video || video.videoWidth === 0 || video.videoHeight === 0) {
       return;
     }
-
     const captureCanvas = document.createElement("canvas");
     captureCanvas.width = video.videoWidth;
     captureCanvas.height = video.videoHeight;
-
     const captureContext = captureCanvas.getContext("2d");
     if (!captureContext) {
       return;
     }
-
     captureContext.drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
     const imageDataUrl = captureCanvas.toDataURL("image/jpeg", 0.92);
-
     setLastCapturedImage(imageDataUrl);
     if (onPhotoCaptured) {
       onPhotoCaptured(imageDataUrl);
     }
   }, [onPhotoCaptured]);
-
   const toggleCameraFacingMode = useCallback(() => {
     if (!canSwitchCamera) {
       return;
@@ -624,31 +542,24 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
       previousMode === "user" ? "environment" : "user"
     );
   }, [canSwitchCamera]);
-
   // Initialize everything on mount
   useEffect(() => {
     let isActive = true;
-
     const init = async () => {
       await initPoseLandmarker();
       if (!isActive) return;
     };
-
     init();
-
     return () => {
       isActive = false;
-
       // Cleanup
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
-
       if (poseLandmarkerRef.current) {
         poseLandmarkerRef.current.close();
         poseLandmarkerRef.current = null;
       }
-
       if (streamRef.current) {
         const tracks = streamRef.current.getTracks();
         tracks.forEach((track) => track.stop());
@@ -656,22 +567,18 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
       }
     };
   }, [initPoseLandmarker]);
-
   useEffect(() => {
     let isActive = true;
     const videoEl = videoRef.current;
-
     const bootCamera = async () => {
       setIsLoading(true);
       await startCamera();
       if (!isActive) return;
       setIsLoading(false);
     };
-
     if (!error) {
       bootCamera();
     }
-
     return () => {
       isActive = false;
       if (videoEl) {
@@ -679,7 +586,6 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
       }
     };
   }, [facingMode, startCamera, error]);
-
   // Start detection loop once loading is done
   useEffect(() => {
     if (!isLoading && !error) {
@@ -693,7 +599,6 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
       }
     };
   }, [isLoading, error, detectPose]);
-
   return (
     <div style={styles.container}>
       <div style={cameraContainerStyle}>
@@ -709,25 +614,21 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
             />
           </div>
         )}
-
         {showTargetPoseOverlay && fittedTargetPoseLandmarks ? (
           <div style={styles.poseMatchBadge}>
             Match: {poseMatchScore !== null ? `${poseMatchScore}%` : "--"}
           </div>
         ) : null}
-
         {isLoading && (
           <div style={styles.loadingOverlay}>
             <p style={styles.loadingText}>Loading pose detection model...</p>
           </div>
         )}
-
         {error && (
           <div style={styles.errorOverlay}>
             <p style={styles.errorText}>⚠️ {error}</p>
           </div>
         )}
-
         <video
           ref={videoRef}
           style={styles.video}
@@ -735,7 +636,6 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
           muted
         />
         <canvas ref={canvasRef} style={styles.canvas} />
-
         {lastCapturedImage ? (
           <Image
             src={lastCapturedImage}
@@ -746,7 +646,6 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
             style={styles.capturedPreview}
           />
         ) : null}
-
         {showControls ? (
           <>
             {!canSwitchCamera ? (
@@ -781,5 +680,4 @@ const PoseCamera: React.FC<PoseCameraProps> = ({
     </div>
   );
 };
-
 export default PoseCamera;
